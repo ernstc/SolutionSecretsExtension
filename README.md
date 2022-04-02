@@ -40,7 +40,7 @@ The synchronization is implemented through a cloud repository that in this case 
 The encryption key is generated from a passphrase or a key file.
 Once you change the development workstation, you don't have to copy any file from the old one. Just install the extension, recreate the encryption key with your passphrase or your key file, authorize access to GitHub Gists and you are ready.
 
-<img src="https://raw.githubusercontent.com/ernstc/SolutionSecretsExtension/main/Resources/screen-config-2019.png" width="431" />
+<img src="https://raw.githubusercontent.com/ernstc/SolutionSecretsExtension/main/Resources/screen-config-2022.png" width="431" />
 
 <br/>
 
