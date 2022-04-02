@@ -2,6 +2,12 @@
 
 Visual Studio extension for helping to manage the solution secrets.
 
+Download this extension from the Visual Studio Marketplace:
+* [Solution Secrets 2022](https://marketplace.visualstudio.com/items?itemName=ErnestoCianciotta.SolutionSecrets2022)
+* [Solution Secrets 2019](https://marketplace.visualstudio.com/items?itemName=ErnestoCianciotta.SolutionSecrets2019)
+
+---
+
 As a good practices, secrets (sensitive data like passwords, connection strings, access keys, etc.) must not be committed with your code in any case and must not be deployed with the apps. That's why we must use the ***User Secrets Manager*** feature in Visual Studio that let us store secrets out of the solution folder. The User Secrets Manager hides implementation details, but essentially it stores secrets in files located in the workstation's user profile folder.
 
 This extension adds some new features to the secrets management for the entire solution. The capabilities of this extension are accessible trough the *Solution Context Menu*:
