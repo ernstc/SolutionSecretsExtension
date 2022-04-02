@@ -9,7 +9,7 @@ namespace SolutionSecrets2022
     {
         public const string Id = "SolutionSecrets2022.40dfc992-754a-4117-b27b-8fe61faf15e1";
         public const string Name = "Solution Secrets 2022";
-        public const string Description = @"This extension let you syncing Visual Studio solution secrets across different development machines.";
+        public const string Description = @"This extension allows you to synchronize Visual Studio solution secrets across different development workstations.";
         public const string Language = "en-US";
         public const string Version = "1.0";
         public const string Author = "Ernesto Cianciotta";
