@@ -1,0 +1,107 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<CommandTable xmlns="http://schemas.microsoft.com/VisualStudio/2005-10-18/CommandTable" xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+    <Extern href="stdidcmd.h"/>
+    <Extern href="vsshlids.h"/>
+    <Include href="KnownImageIds.vsct"/>
+
+    <Commands package="guidSolutionSecrets2019Pkg">
+
+        <Menus>
+            <Menu guid="guidSolutionSecrets2019CmdSet" id="menuidSyncSecrets" priority="0xffff" type="Menu">
+                <Parent guid="guidSolutionSecrets2019CmdSet" id="groupidSyncSecretsMenu"/>
+                <Strings>
+                    <ButtonText>Solution Secrets</ButtonText>
+                    <CommandName>Solution Secrets</CommandName>
+                </Strings>
+            </Menu>
+        </Menus>
+
+        <Groups>
+            <Group guid="guidSolutionSecrets2019CmdSet" id="groupidSyncSecretsMenu" priority="0x0600">
+            </Group>
+            <Group guid="guidSolutionSecrets2019CmdSet" id="groupidSyncSecretsConfig" priority="0x0000">
+                <Parent guid="guidSolutionSecrets2019CmdSet" id="menuidSyncSecrets"/>
+            </Group>
+            <Group guid="guidSolutionSecrets2019CmdSet" id="groupidSyncSecretsActions" priority="0x0100">
+                <Parent guid="guidSolutionSecrets2019CmdSet" id="menuidSyncSecrets"/>
+            </Group>
+            <Group guid="guidSolutionSecrets2019CmdSet" id="groupidOtherSecretsActions" priority="0x0200">
+                <Parent guid="guidSolutionSecrets2019CmdSet" id="menuidSyncSecrets"/>
+            </Group>
+        </Groups>
+
+        <Buttons>
+            <Button guid="guidSolutionSecrets2019CmdSet" id="cmdidInitSecrestsSync" priority="0x0100" type="Button">
+                <Parent guid="guidSolutionSecrets2019CmdSet" id="groupidSyncSecretsConfig" />
+                <Icon guid="ImageCatalogGuid" id="SettingsFile" />
+                <CommandFlag>IconIsMoniker</CommandFlag>
+                <CommandFlag>DynamicVisibility</CommandFlag>
+                <Strings>
+                    <CommandName>InitSecretsSync</CommandName>
+                    <ButtonText>Configure Synchronization...</ButtonText>
+                </Strings>
+            </Button>
+            <Button guid="guidSolutionSecrets2019CmdSet" id="cmdidPushSecrets" priority="0x0100" type="Button">
+                <Parent guid="guidSolutionSecrets2019CmdSet" id="groupidSyncSecretsActions" />
+                <CommandFlag>IconIsMoniker</CommandFlag>
+                <Strings>
+                    <CommandName>PushSecrets</CommandName>
+                    <ButtonText>Push Secrets</ButtonText>
+                </Strings>
+            </Button>
+            <Button guid="guidSolutionSecrets2019CmdSet" id="cmdidPullSecrets" priority="0x0200" type="Button">
+                <Parent guid="guidSolutionSecrets2019CmdSet" id="groupidSyncSecretsActions" />
+                <Strings>
+                    <CommandName>PullSecrets</CommandName>
+                    <ButtonText>Pull Secrets</ButtonText>
+                </Strings>
+            </Button>
+            <Button guid="guidSolutionSecrets2019CmdSet" id="cmdidDeleteSecrets" priority="0x0100" type="Button">
+                <Parent guid="guidSolutionSecrets2019CmdSet" id="groupidOtherSecretsActions" />
+                <Icon guid="ImageCatalogGuid" id="DeleteDocument" />
+                <CommandFlag>IconIsMoniker</CommandFlag>
+                <Strings>
+                    <CommandName>DeleteSecrets</CommandName>
+                    <ButtonText>Delete Locally</ButtonText>
+                </Strings>
+            </Button>
+        </Buttons>
+
+    </Commands>
+
+
+    <CommandPlacements>
+        <CommandPlacement guid="guidSolutionSecrets2019CmdSet" id="groupidSyncSecretsMenu" priority="0x0600">
+            <Parent guid="guidSHLMainMenu" id="IDM_VS_CTXT_SOLNNODE"/>
+        </CommandPlacement>
+        <CommandPlacement guid="guidSolutionSecrets2019CmdSet" id="groupidSyncSecretsMenu" priority="0x0800">
+            <Parent guid="guidSHLMainMenu" id="IDM_VS_MENU_PROJECT"/>
+        </CommandPlacement>
+    </CommandPlacements>
+
+
+    <VisibilityConstraints>
+        <VisibilityItem guid="guidSolutionSecrets2019CmdSet" id="menuidSyncSecrets"  context="guidUIContext"/>
+    </VisibilityConstraints>
+
+
+    <Symbols>
+        <GuidSymbol name="guidSolutionSecrets2019Pkg" value="{1874eb76-4070-4b33-aef7-2050d0d5c4f8}" />
+        <GuidSymbol name="guidUIContext" value="{c61926d5-e2e0-4c0b-af94-155e4bd79809}" />
+
+        <GuidSymbol name="guidSolutionSecrets2019CmdSet" value="{f8563090-794f-4f31-9c42-aeac98516185}">
+            <IDSymbol name="menuidSyncSecrets" value="0x1100"/>
+
+            <IDSymbol name="groupidSyncSecretsConfig" value="0x1110"/>
+            <IDSymbol name="groupidSyncSecretsActions" value="0x1120"/>
+            <IDSymbol name="groupidOtherSecretsActions" value="0x1130"/>
+            <IDSymbol name="groupidSyncSecretsMenu" value="0x1200"/>
+
+            <IDSymbol name="cmdidInitSecrestsSync" value="0x0100" />
+            <IDSymbol name="cmdidPushSecrets" value="0x0110" />
+            <IDSymbol name="cmdidPullSecrets" value="0x0120" />
+            <IDSymbol name="cmdidDeleteSecrets" value="0x130"/>
+        </GuidSymbol>
+    </Symbols>
+</CommandTable>

@@ -1,0 +1,111 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<CommandTable xmlns="http://schemas.microsoft.com/VisualStudio/2005-10-18/CommandTable" xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+    <Extern href="stdidcmd.h"/>
+    <Extern href="vsshlids.h"/>
+    <Include href="KnownImageIds.vsct"/>
+    <Include href="VSGlobals.vsct"/>
+
+    <Commands package="guidSolutionSecrets2022Pkg">
+
+        <Menus>
+            <Menu guid="guidSolutionSecrets2022CmdSet" id="menuidSyncSecrets" priority="0xffff" type="Menu">
+                <Parent guid="guidSolutionSecrets2022CmdSet" id="groupidSyncSecretsMenu"/>
+                <Strings>
+                    <ButtonText>Solution Secrets</ButtonText>
+                    <CommandName>Solution Secrets</CommandName>
+                </Strings>
+            </Menu>
+        </Menus>
+
+        <Groups>
+            <Group guid="guidSolutionSecrets2022CmdSet" id="groupidSyncSecretsMenu" priority="0x0600">
+            </Group>
+            <Group guid="guidSolutionSecrets2022CmdSet" id="groupidSyncSecretsConfig" priority="0x0000">
+                <Parent guid="guidSolutionSecrets2022CmdSet" id="menuidSyncSecrets"/>
+            </Group>
+            <Group guid="guidSolutionSecrets2022CmdSet" id="groupidSyncSecretsActions" priority="0x0100">
+                <Parent guid="guidSolutionSecrets2022CmdSet" id="menuidSyncSecrets"/>
+            </Group>
+            <Group guid="guidSolutionSecrets2022CmdSet" id="groupidOtherSecretsActions" priority="0x0200">
+                <Parent guid="guidSolutionSecrets2022CmdSet" id="menuidSyncSecrets"/>
+            </Group>
+        </Groups>
+
+        <Buttons>
+            <Button guid="guidSolutionSecrets2022Pkg" id="cmdidConfigureCommand" priority="0x0100" type="Button">
+                <Parent guid="guidSolutionSecrets2022CmdSet" id="groupidSyncSecretsConfig" />
+                <Icon guid="ImageCatalogGuid" id="SettingsFile" />
+                <CommandFlag>IconIsMoniker</CommandFlag>
+                <CommandFlag>DynamicVisibility</CommandFlag>
+                <Strings>
+                    <ButtonText>Configure Synchronization...</ButtonText>
+                    <LocCanonicalName>.guidSolutionSecrets2022Pkg.cmdidConfigureCommand</LocCanonicalName>
+                </Strings>
+            </Button>
+            <Button guid="guidSolutionSecrets2022Pkg" id="cmdidPushSecrets" priority="0x0100" type="Button">
+                <Parent guid="guidSolutionSecrets2022CmdSet" id="groupidSyncSecretsActions" />
+                <CommandFlag>IconIsMoniker</CommandFlag>
+                <Strings>
+                    <ButtonText>Push Secrets</ButtonText>
+                    <LocCanonicalName>.guidSolutionSecrets2022Pkg.cmdidPushSecrets</LocCanonicalName>
+                </Strings>
+            </Button>
+            <Button guid="guidSolutionSecrets2022Pkg" id="cmdidPullSecrets" priority="0x0200" type="Button">
+                <Parent guid="guidSolutionSecrets2022CmdSet" id="groupidSyncSecretsActions" />
+                <Strings>
+                    <ButtonText>Pull Secrets</ButtonText>
+                    <LocCanonicalName>.guidSolutionSecrets2022Pkg.cmdidPullSecrets</LocCanonicalName>
+                </Strings>
+            </Button>
+            <Button guid="guidSolutionSecrets2022Pkg" id="cmdidDeleteSecrets" priority="0x0100" type="Button">
+                <Parent guid="guidSolutionSecrets2022CmdSet" id="groupidOtherSecretsActions" />
+                <Icon guid="ImageCatalogGuid" id="DeleteDocument" />
+                <CommandFlag>IconIsMoniker</CommandFlag>
+                <Strings>
+                    <ButtonText>Delete Locally</ButtonText>
+                    <LocCanonicalName>.guidSolutionSecrets2022Pkg.cmdidDeleteSecrets</LocCanonicalName>
+                </Strings>
+            </Button>
+        </Buttons>
+
+    </Commands>
+
+
+    <CommandPlacements>
+        <CommandPlacement guid="guidSolutionSecrets2022CmdSet" id="groupidSyncSecretsMenu" priority="0x0600">
+            <Parent guid="guidSHLMainMenu" id="IDM_VS_CTXT_SOLNNODE"/>
+        </CommandPlacement>
+        <CommandPlacement guid="guidSolutionSecrets2022CmdSet" id="groupidSyncSecretsMenu" priority="0x0800">
+            <Parent guid="guidSHLMainMenu" id="IDM_VS_MENU_PROJECT"/>
+        </CommandPlacement>
+    </CommandPlacements>
+
+
+    <VisibilityConstraints>
+        <VisibilityItem guid="guidSolutionSecrets2022CmdSet" id="menuidSyncSecrets"  context="guidUIContext"/>
+    </VisibilityConstraints>
+    
+
+    <Symbols>
+
+        <GuidSymbol name="guidSolutionSecrets2022Pkg" value="{a5018249-f989-4a5c-a198-711abae86ef2}">
+            <IDSymbol name="cmdidConfigureCommand" value="0x0100" />
+            <IDSymbol name="cmdidPushSecrets" value="0x0110" />
+            <IDSymbol name="cmdidPullSecrets" value="0x0120" />
+            <IDSymbol name="cmdidDeleteSecrets" value="0x130"/>  
+        </GuidSymbol>
+        
+        <GuidSymbol name="guidUIContext" value="{c61926d5-e2e0-4c0b-af94-155e4bd79809}" />
+
+        <GuidSymbol name="guidSolutionSecrets2022CmdSet" value="{3d86c44c-ecc8-420b-a516-f967a425ead7}">
+            <IDSymbol name="menuidSyncSecrets" value="0x1100"/>
+
+            <IDSymbol name="groupidSyncSecretsConfig" value="0x1110"/>
+            <IDSymbol name="groupidSyncSecretsActions" value="0x1120"/>
+            <IDSymbol name="groupidOtherSecretsActions" value="0x1130"/>
+            <IDSymbol name="groupidSyncSecretsMenu" value="0x1200"/>
+        </GuidSymbol>
+
+    </Symbols>
+</CommandTable>
