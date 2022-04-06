@@ -1,4 +1,5 @@
-﻿using Microsoft.VisualStudio.Threading;
+﻿using System.Collections.Generic;
+using Microsoft.VisualStudio.Threading;
 using Newtonsoft.Json;
 using SolutionSecrets.Core;
 
@@ -88,20 +89,48 @@ namespace SolutionSecrets2022
 						continue;
 					}
 
-					foreach (var configFile in configFiles)
+					Dictionary<string, string> secretFiles = null;
+					try
 					{
-						if (configFile.UniqueFileName == file.name)
+						secretFiles = JsonConvert.DeserializeObject<Dictionary<string, string>>(file.content);
+					}
+					catch
+					{
+						await VS.StatusBar.ShowMessageAsync("Error pulling secrets for the solution.");
+					}
+
+					if (secretFiles == null)
+					{
+						failed = true;
+						break;
+					}
+
+					foreach (var secret in secretFiles)
+					{
+						string configFileName = secret.Key;
+
+						// This check is for compatibility with version 1.0.x
+						if (configFileName == "content")
 						{
-							configFile.Content = file.content;
-							if (configFile.Decrypt())
+							configFileName = "secrets.json";
+						}
+
+						foreach (var configFile in configFiles)
+						{
+							if (configFile.GroupName == file.name
+								&& configFile.FileName == configFileName)
 							{
-								solution.SaveConfigFile(configFile);
+								configFile.Content = secret.Value;
+								if (configFile.Decrypt())
+								{
+									solution.SaveConfigFile(configFile);
+								}
+								else
+								{
+									failed = true;
+								}
+								break;
 							}
-							else
-							{
-								failed = true;
-							}
-							break;
 						}
 					}
 

@@ -63,11 +63,11 @@ namespace SolutionSecrets2019.Commands
 				return;
 			}
 
-			await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync(); 
+			await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
 			var solutionFullName = SolutionSecrets2019Package._dte.Solution.FullName;
 
 			SolutionFile solution = new SolutionFile(solutionFullName);
-			
+
 			var configFiles = solution.GetProjectsSecretConfigFiles();
 			if (configFiles.Count == 0)
 			{
@@ -75,14 +75,16 @@ namespace SolutionSecrets2019.Commands
 			}
 
 			bool failed = false;
+			bool deleted = false;
 			foreach (var configFile in configFiles)
 			{
-				FileInfo file = new FileInfo(configFile.FullName);
+				FileInfo file = new FileInfo(configFile.FilePath);
 				if (file.Directory.Exists)
 				{
 					try
 					{
 						file.Directory.Delete(true);
+						deleted = true;
 					}
 					catch
 					{
@@ -92,7 +94,12 @@ namespace SolutionSecrets2019.Commands
 			}
 
 			if (!failed)
-				await UseStatusBarAsync("Solution secrets deleted locally.");
+			{
+				if (deleted)
+					await UseStatusBarAsync("Solution secrets deleted locally.");
+				else
+					await UseStatusBarAsync("No local secrets found.");
+			}
 			else
 				await UseStatusBarAsync("Local deletion of solution secrets failed!");
 		}

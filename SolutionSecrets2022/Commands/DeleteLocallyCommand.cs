@@ -37,14 +37,16 @@ namespace SolutionSecrets2022
 			}
 
 			bool failed = false;
+			bool deleted = false;
 			foreach (var configFile in configFiles)
 			{
-				FileInfo file = new FileInfo(configFile.FullName);
+				FileInfo file = new FileInfo(configFile.FilePath);
 				if (file.Directory.Exists)
 				{
 					try
 					{
 						file.Directory.Delete(true);
+						deleted = true;
 					}
 					catch
 					{
@@ -54,9 +56,15 @@ namespace SolutionSecrets2022
 			}
 
 			if (!failed)
-				await VS.StatusBar.ShowMessageAsync("Solution secrets deleted locally.");
+			{
+				if (deleted)
+					await VS.StatusBar.ShowMessageAsync("Solution secrets deleted locally.");
+				else
+					await VS.StatusBar.ShowMessageAsync("No local secrets found.");
+			}
 			else
 				await VS.StatusBar.ShowMessageAsync("Local deletion of solution secrets failed!");
 		}
+
 	}
 }

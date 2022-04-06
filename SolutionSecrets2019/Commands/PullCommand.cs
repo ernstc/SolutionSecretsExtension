@@ -1,7 +1,7 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.ComponentModel.Design;
 using System.Globalization;
-using System.IO;
 using System.Windows;
 
 using Microsoft.VisualStudio.Shell;
@@ -68,12 +68,12 @@ namespace SolutionSecrets2019.Commands
 				System.Windows.MessageBox.Show("You need to configure the solution secrets synchronization before using the Pull command.", Vsix.Name, MessageBoxButton.OK, MessageBoxImage.Exclamation);
 
 				var dialog = new ConfigDialog();
-				dialog.ShowDialog(); 
-				
+				dialog.ShowDialog();
+
 				return;
 			}
 
-			await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync(); 
+			await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
 			var solutionFullName = SolutionSecrets2019Package._dte.Solution.FullName;
 
 			SolutionFile solution = new SolutionFile(solutionFullName, _cipher);
@@ -130,20 +130,48 @@ namespace SolutionSecrets2019.Commands
 						continue;
 					}
 
-					foreach (var configFile in configFiles)
+					Dictionary<string, string> secretFiles = null;
+					try
 					{
-						if (configFile.UniqueFileName == file.name)
+						secretFiles = JsonConvert.DeserializeObject<Dictionary<string, string>>(file.content);
+					}
+					catch
+					{
+						await UseStatusBarAsync("Error pulling secrets for the solution.");
+					}
+
+					if (secretFiles == null)
+					{
+						failed = true;
+						break;
+					}
+
+					foreach (var secret in secretFiles)
+					{
+						string configFileName = secret.Key;
+
+						// This check is for compatibility with version 1.0.x
+						if (configFileName == "content")
 						{
-							configFile.Content = file.content;
-							if (configFile.Decrypt())
+							configFileName = "secrets.json";
+						}
+
+						foreach (var configFile in configFiles)
+						{
+							if (configFile.GroupName == file.name
+								&& configFile.FileName == configFileName)
 							{
-								solution.SaveConfigFile(configFile);
+								configFile.Content = secret.Value;
+								if (configFile.Decrypt())
+								{
+									solution.SaveConfigFile(configFile);
+								}
+								else
+								{
+									failed = true;
+								}
+								break;
 							}
-							else
-							{
-								failed = true;
-							}
-							break;
 						}
 					}
 

@@ -5,21 +5,32 @@ using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using System.Xml.Linq;
 using SolutionSecrets.Core.Encryption;
 
 namespace SolutionSecrets.Core
 {
     public class SolutionFile
     {
-        private Regex _projRegex = new Regex(".*proj$");
+        private const string ASPNET_MVC5_PROJECT_GUID = "{349c5851-65df-11da-9384-00065b846f21}";
+
+        private readonly Regex _projRegex = new Regex(".*proj$");
 
         private string _name;
         private string _filePath;
         private string _solutionFolderPath;
         private ICipher _cipher;
 
-
         public string Name => _name;
+
+
+
+        class SecretFileInfo
+        {
+            public string SecretsId { get; set; }
+            public string FilePath { get; set; }
+        }
+
 
 
         public SolutionFile(string filePath, ICipher cipher = null)
@@ -50,20 +61,39 @@ namespace SolutionSecrets.Core
                         if (_projRegex.IsMatch(value))
                         {
                             string projectFilePath = Path.Combine(_solutionFolderPath, Path.Combine(value.Split('\\')));
+                            string projectFileContent;
 
-                            // Search for secrets in the project.
-                            var secrects = GetProjectSecretsFilePath(projectFilePath);
-                            if (secrects != null)
+                            FileInfo projectFile = new FileInfo(projectFilePath);
+                            if (projectFile.Exists)
                             {
-                                string uniqueFileName = $"secrets\\{secrects.Value.secrectsId}.json";
-                                if (!configFiles.ContainsKey(uniqueFileName))
+                                try
                                 {
-                                    var configFile = new ConfigFile(secrects.Value.filePath, uniqueFileName, _cipher);
-                                    configFile.ProjectFileName = value;
-                                    configFiles.Add(uniqueFileName, configFile);
+                                    projectFileContent = File.ReadAllText(projectFilePath);
                                 }
+                                catch
+                                {
+                                    Console.WriteLine("    ERR: Error loading project file.");
+                                    break;
+                                }
+
+                                var secrects = GetProjectSecretsFilePath(projectFileContent);
+                                if (secrects == null && projectFile.Directory != null)
+                                {
+                                    secrects = GetDotNetFrameworkProjectSecretFiles(projectFileContent, projectFile.Directory);
+                                }
+
+                                if (secrects != null)
+                                {
+                                    string groupName = $"secrets\\{secrects.SecretsId}.json";
+                                    if (!configFiles.ContainsKey(secrects.FilePath))
+                                    {
+                                        var configFile = new ConfigFile(secrects.FilePath, groupName, _cipher);
+                                        configFile.ProjectFileName = value;
+                                        configFiles.Add(secrects.FilePath, configFile);
+                                    }
+                                }
+                                break;
                             }
-                            break;
                         }
                         idx = line.IndexOf('"', endIdx + 1);
                     }
@@ -73,44 +103,90 @@ namespace SolutionSecrets.Core
         }
 
 
-        private (string secrectsId, string filePath)? GetProjectSecretsFilePath(string projectFilePath)
+        private SecretFileInfo GetProjectSecretsFilePath(string projectFileContent)
         {
             const string openTag = "<UserSecretsId>";
-            const string endTag = "</UserSecretsId>";
-            if (File.Exists(projectFilePath))
-            {
-                string content;
-                try
-                {
-                    content = File.ReadAllText(projectFilePath);
-                }
-                catch
-                {
-                    Console.WriteLine("    ERR: Error loading project file.");
-                    return null;
-                }
+            const string closeTag = "</UserSecretsId>";
 
-                int idx = content.IndexOf(openTag, StringComparison.InvariantCultureIgnoreCase);
-                if (idx >= 0)
+            int idx = projectFileContent.IndexOf(openTag, StringComparison.InvariantCultureIgnoreCase);
+            if (idx >= 0)
+            {
+                int endIdx = projectFileContent.IndexOf(closeTag, idx + 1);
+                if (endIdx > idx)
                 {
-                    int endIdx = content.IndexOf(endTag, idx + 1);
-                    string secretsId = content.Substring(idx + openTag.Length, endIdx - idx - openTag.Length);
+                    string secretsId = projectFileContent.Substring(idx + openTag.Length, endIdx - idx - openTag.Length);
                     string userProfileFolder = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-                    return (secretsId, GetSecretsFilePath(secretsId, userProfileFolder));
+                    return new SecretFileInfo
+                    {
+                        SecretsId = secretsId,
+                        FilePath = GetSecretsFilePath(secretsId, userProfileFolder, "secrets.json")
+                    };
                 }
             }
+
+            return null;
+        }
+
+
+        private SecretFileInfo GetDotNetFrameworkProjectSecretFiles(string projectFileContent, DirectoryInfo projectFolder)
+        {
+            const string openTag = "<ProjectTypeGuids>";
+            const string closeTag = "</ProjectTypeGuids>";
+            const string secretsBuilderTypeName = "Microsoft.Configuration.ConfigurationBuilders.UserSecretsConfigBuilder";
+
+            int idx = projectFileContent.IndexOf(openTag, StringComparison.InvariantCultureIgnoreCase);
+            if (idx >= 0)
+            {
+                int endIdx = projectFileContent.IndexOf(closeTag, idx + 1);
+                if (endIdx > idx)
+                {
+                    string[] projectGuids = projectFileContent.Substring(idx + openTag.Length, endIdx - idx - openTag.Length).ToLower().Split(';');
+                    if (projectGuids.Contains(ASPNET_MVC5_PROJECT_GUID))
+                    {
+                        var webConfigFiles = projectFolder.GetFiles("web*.config", SearchOption.TopDirectoryOnly);
+                        foreach (var webConfigFile in webConfigFiles)
+                        {
+                            XDocument xml = XDocument.Load(webConfigFile.FullName);
+                            var addNodes = xml.Descendants(XName.Get("configBuilders"))
+                                .Descendants(XName.Get("builders"))
+                                .Descendants(XName.Get("add"));
+
+                            foreach (var node in addNodes)
+                            {
+                                string name = node.Attribute(XName.Get("name"))?.Value;
+                                string userSecretsId = node.Attribute(XName.Get("userSecretsId"))?.Value;
+                                string type = node.Attribute(XName.Get("type"))?.Value;
+
+                                if (name == "Secrets"
+                                    && userSecretsId != null
+                                    && type != null
+                                    && type.StartsWith(secretsBuilderTypeName, StringComparison.OrdinalIgnoreCase))
+                                {
+                                    string userProfileFolder = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+                                    return new SecretFileInfo
+                                    {
+                                        SecretsId = userSecretsId,
+                                        FilePath = GetSecretsFilePath(userSecretsId, userProfileFolder, "secrets.xml")
+                                    };
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
             return null;
         }
 
 
         public void SaveConfigFile(ConfigFile configFile)
         {
-            string secretsId = configFile.UniqueFileName.Substring(8, 36);
+            string secretsId = configFile.GroupName.Substring(8, 36);
             string userProfileFolder = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-            string filePath = GetSecretsFilePath(secretsId, userProfileFolder);
+            string filePath = GetSecretsFilePath(secretsId, userProfileFolder, configFile.FileName);
 
             FileInfo fileInfo = new FileInfo(filePath);
-            if (!fileInfo.Directory.Exists)
+            if (fileInfo.Directory != null && !fileInfo.Directory.Exists)
             {
                 Directory.CreateDirectory(fileInfo.Directory.FullName);
             }
@@ -118,11 +194,11 @@ namespace SolutionSecrets.Core
         }
 
 
-        private static string GetSecretsFilePath(string secretsId, string userProfileFolder)
+        private static string GetSecretsFilePath(string secretsId, string userProfileFolder, string fileName)
         {
             return (Environment.OSVersion.Platform == System.PlatformID.Win32NT) ?
-                $"{userProfileFolder}\\AppData\\Roaming\\Microsoft\\UserSecrets\\{secretsId}\\secrets.json" :
-                $"{userProfileFolder}/.microsoft/usersecrets/{secretsId}/secrets.json";
+                $"{userProfileFolder}\\AppData\\Roaming\\Microsoft\\UserSecrets\\{secretsId}\\{fileName}" :
+                $"{userProfileFolder}/.microsoft/usersecrets/{secretsId}/{fileName}";
         }
     }
 }

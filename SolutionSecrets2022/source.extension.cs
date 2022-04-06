@@ -11,7 +11,7 @@ namespace SolutionSecrets2022
         public const string Name = "Solution Secrets 2022";
         public const string Description = @"This extension allows you to synchronize Visual Studio solution secrets across different development workstations.";
         public const string Language = "en-US";
-        public const string Version = "1.0";
+        public const string Version = "1.1.2";
         public const string Author = "Ernesto Cianciotta";
         public const string Tags = "devops;secrets;secrets management;synchronization;user secrets;";
     }

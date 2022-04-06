@@ -39,7 +39,7 @@ namespace SolutionSecrets2022
 
 			var headerFile = new HeaderFile
 			{
-				visualStudioSolutionSecretsVersion = Versions.CurrentFileFormat,
+				visualStudioSolutionSecretsVersion = Vsix.Version,
 				lastUpload = DateTime.UtcNow,
 				solutionFile = solution.Name
 			};
@@ -55,6 +55,8 @@ namespace SolutionSecrets2022
 
 			_repository.SolutionName = solution.Name;
 
+			Dictionary<string, Dictionary<string, string>> secrets = new Dictionary<string, Dictionary<string, string>>();
+
 			bool failed = false;
 			foreach (var configFile in configFiles)
 			{
@@ -63,7 +65,11 @@ namespace SolutionSecrets2022
 				{
 					if (configFile.Encrypt())
 					{
-						files.Add((configFile.UniqueFileName, configFile.Content));
+						if (!secrets.ContainsKey(configFile.GroupName))
+						{
+							secrets.Add(configFile.GroupName, new Dictionary<string, string>());
+						}
+						secrets[configFile.GroupName].Add(configFile.FileName, configFile.Content);
 					}
 					else
 					{
@@ -71,6 +77,12 @@ namespace SolutionSecrets2022
 						break;
 					}
 				}
+			}
+
+			foreach (var group in secrets)
+			{
+				string groupContent = JsonConvert.SerializeObject(group.Value);
+				files.Add((group.Key, groupContent));
 			}
 
 			if (!failed)
