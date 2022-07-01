@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <PackageManifest Version="2.0.0" xmlns="http://schemas.microsoft.com/developer/vsx-schema/2011" xmlns:d="http://schemas.microsoft.com/developer/vsx-schema-design/2011">
     <Metadata>
-        <Identity Id="SolutionSecrets2022.40dfc992-754a-4117-b27b-8fe61faf15e1" Version="1.1.2" Language="en-US" Publisher="Ernesto Cianciotta" />
+        <Identity Id="SolutionSecrets2022.40dfc992-754a-4117-b27b-8fe61faf15e1" Version="1.1.3" Language="en-US" Publisher="Ernesto Cianciotta" />
         <DisplayName>Solution Secrets 2022</DisplayName>
         <Description xml:space="preserve">This extension allows you to synchronize Visual Studio solution secrets across different development workstations.</Description>
         <License>LICENSE</License>
