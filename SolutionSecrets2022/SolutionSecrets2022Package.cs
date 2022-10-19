@@ -8,6 +8,9 @@ using System.Threading;
 using EnvDTE;
 using EnvDTE80;
 using Microsoft;
+using SolutionSecrets.Core;
+using SolutionSecrets.Core.Encryption;
+using SolutionSecrets.Core.Repository;
 
 namespace SolutionSecrets2022
 {
@@ -24,8 +27,16 @@ namespace SolutionSecrets2022
         {
 			_dte = await GetServiceAsync(typeof(DTE)) as DTE2;
 			Assumes.Present(_dte); 
-			
 			await this.RegisterCommandsAsync();
-        }
-    }
+
+			var cipher = new Cipher();
+			await cipher.RefreshStatus();
+			Context.Current.AddService<ICipher>(cipher);
+
+			var defaultRepository = new GistRepository();
+			Context.Current.AddService<IRepository>(defaultRepository);
+			Context.Current.AddService<IRepository>(defaultRepository, nameof(RepositoryTypesEnum.GitHub));
+			Context.Current.AddService<IRepository>(new AzureKeyVaultRepository(), nameof(RepositoryTypesEnum.AzureKV));
+		}
+	}
 }

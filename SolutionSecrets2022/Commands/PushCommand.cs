@@ -2,6 +2,7 @@
 using Microsoft.VisualStudio.Threading;
 using Newtonsoft.Json;
 using SolutionSecrets.Core;
+using SolutionSecrets.Core.Repository;
 
 namespace SolutionSecrets2022
 {
@@ -16,10 +17,24 @@ namespace SolutionSecrets2022
 
 		private async Task PushSecretsAsync()
 		{
-			var _cipher = Services.Cipher;
-			var _repository = Services.Repository;
+			await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+			var solutionFullName = SolutionSecrets2022Package._dte.Solution.FullName;
 
-			if (!await _cipher.IsReady() || !await _repository.IsReady())
+			SolutionFile solution = new SolutionFile(solutionFullName);
+
+			var secretFiles = solution.GetProjectsSecretFiles();
+			if (secretFiles.Count == 0)
+			{
+				await VS.StatusBar.ShowMessageAsync("No secrets found.");
+				return;
+			}
+
+			var synchronizationSettings = solution.CustomSynchronizationSettings;
+
+			// Select the repository for the curront solution
+			IRepository repository = Context.Current.GetRepository(synchronizationSettings) ?? Context.Current.Repository;
+
+			if (!await Context.Current.Cipher.IsReady() || !await repository.IsReady())
 			{
 				await VS.MessageBox.ShowAsync("You need to configure the solution secrets synchronization before using the Push command.",
 					icon: Microsoft.VisualStudio.Shell.Interop.OLEMSGICON.OLEMSGICON_WARNING,
@@ -31,45 +46,44 @@ namespace SolutionSecrets2022
 				return;
 			}
 
-			await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
-			var solutionFullName = SolutionSecrets2022Package._dte.Solution.FullName;
-
-			SolutionFile solution = new SolutionFile(solutionFullName, _cipher);
 			await VS.StatusBar.ShowMessageAsync($"Pushing secrets for solution: {solution.Name} ...");
 
 			var headerFile = new HeaderFile
 			{
-				visualStudioSolutionSecretsVersion = Vsix.Version,
+				visualStudioSolutionSecretsVersion = Versions.VersionString!,
 				lastUpload = DateTime.UtcNow,
-				solutionFile = solution.Name
+				solutionFile = solution.Name,
+				solutionGuid = solution.Uid
 			};
 
-			List<(string fileName, string content)> files = new List<(string fileName, string content)>();
-			files.Add(("secrets", JsonConvert.SerializeObject(headerFile, Formatting.None)));
-
-			var configFiles = solution.GetProjectsSecretConfigFiles();
-			if (configFiles.Count == 0)
+			var files = new List<(string fileName, string content)>
 			{
-				return;
-			}
+				("secrets", JsonConvert.SerializeObject(headerFile, Formatting.None))
+			};
 
-			_repository.SolutionName = solution.Name;
+			var secrets = new Dictionary<string, Dictionary<string, string>>();
 
-			Dictionary<string, Dictionary<string, string>> secrets = new Dictionary<string, Dictionary<string, string>>();
-
+			bool isEmpty = true;
 			bool failed = false;
-			foreach (var configFile in configFiles)
+			foreach (var secretFile in secretFiles)
 			{
-				configFile.Load();
-				if (configFile.Content != null)
+				if (secretFile.Content != null)
 				{
-					if (configFile.Encrypt())
+					isEmpty = false;
+					bool isFileOk = true;
+
+					if (repository.EncryptOnClient)
 					{
-						if (!secrets.ContainsKey(configFile.GroupName))
+						isFileOk = secretFile.Encrypt();
+					}
+
+					if (isFileOk)
+					{
+						if (!secrets.ContainsKey(secretFile.ContainerName))
 						{
-							secrets.Add(configFile.GroupName, new Dictionary<string, string>());
+							secrets.Add(secretFile.ContainerName, new Dictionary<string, string>());
 						}
-						secrets[configFile.GroupName].Add(configFile.FileName, configFile.Content);
+						secrets[secretFile.ContainerName].Add(secretFile.Name, secretFile.Content);
 					}
 					else
 					{
@@ -85,9 +99,9 @@ namespace SolutionSecrets2022
 				files.Add((group.Key, groupContent));
 			}
 
-			if (!failed)
+			if (!isEmpty && !failed)
 			{
-				if (await _repository.PushFilesAsync(files))
+				if (await repository.PushFilesAsync(solution, files))
 					await VS.StatusBar.ShowMessageAsync("Secrets pushed successfully.");
 				else
 					failed = true;

@@ -3,7 +3,8 @@ using System.Text.RegularExpressions;
 using System.Windows;
 using Microsoft.VisualStudio.PlatformUI;
 using Microsoft.Win32;
-
+using SolutionSecrets.Core;
+using SolutionSecrets.Core.Repository;
 
 namespace SolutionSecrets2022
 {
@@ -39,8 +40,9 @@ namespace SolutionSecrets2022
 
 		private async Task CheckRepositoryStatusAsync()
 		{
-			await Services.Repository.RefreshStatus();
-			if (await Services.Repository.IsReady())
+			var repository = Context.Current.GetService<IRepository>(nameof(RepositoryTypesEnum.GitHub));
+			await repository.RefreshStatus();
+			if (await repository.IsReady())
 			{
 				panelGitHubAuthorizationStatus.Visibility = Visibility.Visible;
 			}
@@ -53,8 +55,9 @@ namespace SolutionSecrets2022
 
 		private async Task CheckCipherStatusAsync()
 		{
-			await Services.Cipher.RefreshStatus();
-			if (await Services.Cipher.IsReady())
+			var cipher = Context.Current.Cipher;
+			await cipher.RefreshStatus();
+			if (await cipher.IsReady())
 			{
 				panelCreateKey.Visibility = Visibility.Collapsed;
 				panelKeyStatus.Visibility = Visibility.Visible;
@@ -125,7 +128,8 @@ namespace SolutionSecrets2022
 		{
 			btnAuthorizeGitHub.IsEnabled = false;
 
-			string deviceCode = await Services.Repository.StartDeviceFlowAuthorizationAsync();
+			var repository = Context.Current.GetService<IRepository>(nameof(RepositoryTypesEnum.GitHub));
+			string deviceCode = await repository.StartDeviceFlowAuthorizationAsync();
 			if (deviceCode == null)
 			{
 				return;
@@ -142,8 +146,9 @@ namespace SolutionSecrets2022
 		{
 			btnContinueAuthorizingGitHub.IsEnabled = false;
 
-			await Services.Repository.CompleteDeviceFlowAuthorizationAsync();
-			if (await Services.Repository.IsReady())
+			var repository = Context.Current.GetService<IRepository>(nameof(RepositoryTypesEnum.GitHub));
+			await repository.CompleteDeviceFlowAuthorizationAsync();
+			if (await repository.IsReady())
 			{
 				panelAuthorizingGitHub.Visibility = Visibility.Collapsed;
 				panelGitHubAuthorizationStatus.Visibility = Visibility.Visible;
@@ -162,7 +167,7 @@ namespace SolutionSecrets2022
 		{
 			if (_generatingNewEncryptionKey)
 			{
-				if (await Services.Cipher.IsReady())
+				if (await Context.Current.Cipher.IsReady())
 				{
 					MessageBoxResult result = System.Windows.MessageBox.Show("You are updating the encryption key.\nSaved secrets will no longer be recoverable.\n\nAre you sure?", Constants.MESSAGE_BOX_TITLE, MessageBoxButton.YesNo, MessageBoxImage.Exclamation);
 					if (result != MessageBoxResult.Yes)
@@ -211,7 +216,7 @@ namespace SolutionSecrets2022
 				return false;
 			}
 
-			Services.Cipher.Init(txtPassPhrase.Password);
+			Context.Current.Cipher.Init(txtPassPhrase.Password);
 			return true;
 		}
 
@@ -234,7 +239,7 @@ namespace SolutionSecrets2022
 
 			using (var file = File.OpenRead(filePath))
 			{
-				Services.Cipher.Init(file);
+				Context.Current.Cipher.Init(file);
 			}
 			return true;
 		}

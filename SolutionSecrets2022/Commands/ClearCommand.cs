@@ -4,24 +4,24 @@ using SolutionSecrets.Core;
 namespace SolutionSecrets2022
 {
     [Command(PackageIds.cmdidDeleteSecrets)]
-    internal sealed class DeleteLocallyCommand : BaseCommand<DeleteLocallyCommand>
+    internal sealed class ClearCommand : BaseCommand<ClearCommand>
     {
         protected override async Task ExecuteAsync(OleMenuCmdEventArgs e)
         {
-			await DeleteLocallyAsync();
+			await ClearCommandAsync();
 		}
 
 
-		private async Task DeleteLocallyAsync()
+		private async Task ClearCommandAsync()
 		{
-			var result = await VS.MessageBox.ShowAsync("You are about to locally delete all the secrets for this solution.", "Are you sure?",
+			var result = await VS.MessageBox.ShowAsync("You are about to clear all the secrets for this solution on this machine.", "Are you sure?",
 				icon: Microsoft.VisualStudio.Shell.Interop.OLEMSGICON.OLEMSGICON_WARNING,
 				buttons: Microsoft.VisualStudio.Shell.Interop.OLEMSGBUTTON.OLEMSGBUTTON_YESNO,
 				defaultButton: Microsoft.VisualStudio.Shell.Interop.OLEMSGDEFBUTTON.OLEMSGDEFBUTTON_SECOND);
 
 			if (result != Microsoft.VisualStudio.VSConstants.MessageBoxResult.IDYES)
 			{
-				await VS.StatusBar.ShowMessageAsync($"Solution secrets deletetion has been aborted.");
+				await VS.StatusBar.ShowMessageAsync("Solution secrets clearing has been aborted.");
 				return;
 			}
 
@@ -30,17 +30,17 @@ namespace SolutionSecrets2022
 
 			SolutionFile solution = new SolutionFile(solutionFullName);
 
-			var configFiles = solution.GetProjectsSecretConfigFiles();
-			if (configFiles.Count == 0)
+			var secretFiles = solution.GetProjectsSecretFiles();
+			if (secretFiles.Count == 0)
 			{
 				return;
 			}
 
 			bool failed = false;
 			bool deleted = false;
-			foreach (var configFile in configFiles)
+			foreach (var secretFile in secretFiles)
 			{
-				FileInfo file = new FileInfo(configFile.FilePath);
+				FileInfo file = new FileInfo(secretFile.Path);
 				if (file.Directory.Exists)
 				{
 					try
@@ -58,12 +58,14 @@ namespace SolutionSecrets2022
 			if (!failed)
 			{
 				if (deleted)
-					await VS.StatusBar.ShowMessageAsync("Solution secrets deleted locally.");
+					await VS.StatusBar.ShowMessageAsync("Solution secrets cleared.");
 				else
 					await VS.StatusBar.ShowMessageAsync("No local secrets found.");
 			}
 			else
-				await VS.StatusBar.ShowMessageAsync("Local deletion of solution secrets failed!");
+			{
+				await VS.StatusBar.ShowMessageAsync("Solution secrets clearing has failed!");
+			}
 		}
 
 	}

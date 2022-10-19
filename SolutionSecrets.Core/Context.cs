@@ -82,7 +82,7 @@ namespace SolutionSecrets.Core
         }
 
 
-        internal IRepository GetRepository(SolutionSynchronizationSettings settings)
+        public IRepository GetRepository(SolutionSynchronizationSettings settings)
         {
             if (settings != null)
             {
