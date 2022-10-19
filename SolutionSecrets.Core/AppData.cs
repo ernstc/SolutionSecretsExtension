@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text.Json;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
 
@@ -11,21 +12,24 @@ namespace SolutionSecrets.Core
     public static class AppData
     {
 
-        private const string APP_DATA_FOLDER = @"Visual Studio Solution Secrets";
-
-
-        public static T LoadData<T>(string fileName) where T: class, new()
+        private static JsonSerializerSettings serializerSettings = new JsonSerializerSettings
         {
-            string filePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), APP_DATA_FOLDER, fileName);
+            Formatting = Formatting.Indented
+        };
+
+
+        public static T LoadData<T>(string fileName) where T : class, new()
+        {
+            string filePath = Path.Combine(Context.Current.IO.GetApplicationDataFolderPath(), fileName);
             if (File.Exists(filePath))
             {
                 try
                 {
-                    return JsonConvert.DeserializeObject<T>(File.ReadAllText(filePath));
+                    string json = File.ReadAllText(filePath);
+                    return JsonConvert.DeserializeObject<T>(json, serializerSettings);
                 }
                 catch
-                {
-                }
+                { }
             }
             return null;
         }
@@ -33,20 +37,16 @@ namespace SolutionSecrets.Core
 
         public static void SaveData<T>(string fileName, T data) where T : class, new()
         {
-            string folderPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), APP_DATA_FOLDER);
+            string folderPath = Context.Current.IO.GetApplicationDataFolderPath();
             Directory.CreateDirectory(folderPath);
             string filePath = Path.Combine(folderPath, fileName);
             try
             {
-                string json = JsonConvert.SerializeObject(data, new JsonSerializerSettings 
-                {
-                    Formatting = Formatting.Indented
-                });
-                File.WriteAllText(filePath, JsonConvert.SerializeObject(data));
+                string json = JsonConvert.SerializeObject(data, serializerSettings);
+                File.WriteAllText(filePath, json);
             }
             catch
-            {
-            }
+            { }
         }
 
     }

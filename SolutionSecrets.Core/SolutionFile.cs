@@ -1,27 +1,32 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Xml.Linq;
-using SolutionSecrets.Core.Encryption;
+
 
 namespace SolutionSecrets.Core
 {
-    public class SolutionFile
+
+    [DebuggerDisplay("Name = {Name}")]
+    public class SolutionFile : ISolution
     {
         private const string ASPNET_MVC5_PROJECT_GUID = "{349c5851-65df-11da-9384-00065b846f21}";
 
         private readonly Regex _projRegex = new Regex(".*proj$");
 
         private string _name;
+        private Guid _uid;
         private string _filePath;
         private string _solutionFolderPath;
-        private ICipher _cipher;
+
 
         public string Name => _name;
+        public Guid Uid => _uid;
 
 
 
@@ -33,24 +38,46 @@ namespace SolutionSecrets.Core
 
 
 
-        public SolutionFile(string filePath, ICipher cipher = null)
+        public SolutionFile(string filePath)
         {
             FileInfo fileInfo = new FileInfo(filePath);
             _filePath = filePath;
             _solutionFolderPath = fileInfo.Directory?.FullName ?? String.Empty;
-            _cipher = cipher;
             _name = fileInfo.Name;
+
+            if (fileInfo.Exists)
+            {
+                string[] lines = File.ReadAllLines(filePath);
+                foreach (var line in lines)
+                {
+                    if (line.Contains("SolutionGuid") && line.Contains('='))
+                    {
+                        string guid = line.Substring(line.IndexOf('=') + 1);
+                        _uid = Guid.Parse(guid.Trim());
+                        break;
+                    }
+                }
+            }
         }
 
 
-        public ICollection<ConfigFile> GetProjectsSecretConfigFiles()
+        public SolutionSynchronizationSettings CustomSynchronizationSettings
         {
-            Dictionary<string, ConfigFile> configFiles = new Dictionary<string, ConfigFile>();
+            get
+            {
+                return Configuration.GetCustomSynchronizationSettings(_uid);
+            }
+        }
+
+
+        public ICollection<SecretFile> GetProjectsSecretFiles()
+        {
+            Dictionary<string, SecretFile> configFiles = new Dictionary<string, SecretFile>();
 
             string[] lines = File.ReadAllLines(_filePath);
             foreach (string line in lines)
             {
-                if (line.StartsWith("Project("))
+                if (line.StartsWith("Project(", StringComparison.Ordinal))
                 {
                     int idx = line.IndexOf('"');
                     while (idx >= 0)
@@ -60,7 +87,8 @@ namespace SolutionSecrets.Core
 
                         if (_projRegex.IsMatch(value))
                         {
-                            string projectFilePath = Path.Combine(_solutionFolderPath, Path.Combine(value.Split('\\')));
+                            string projectFileRelativePath = Path.Combine(Path.Combine(value.Split('\\')));
+                            string projectFilePath = Path.Combine(_solutionFolderPath, projectFileRelativePath);
                             string projectFileContent;
 
                             FileInfo projectFile = new FileInfo(projectFilePath);
@@ -76,20 +104,21 @@ namespace SolutionSecrets.Core
                                     break;
                                 }
 
-                                var secrects = GetProjectSecretsFilePath(projectFileContent);
-                                if (secrects == null && projectFile.Directory != null)
+                                var secrets = GetProjectSecretsFilePath(projectFileContent);
+                                if (secrets == null && projectFile.Directory != null)
                                 {
-                                    secrects = GetDotNetFrameworkProjectSecretFiles(projectFileContent, projectFile.Directory);
+                                    secrets = GetDotNetFrameworkProjectSecretFiles(projectFileContent, projectFile.Directory.FullName);
                                 }
 
-                                if (secrects != null)
+                                if (secrets != null)
                                 {
-                                    string groupName = $"secrets\\{secrects.SecretsId}.json";
-                                    if (!configFiles.ContainsKey(secrects.FilePath))
+                                    string groupName = $"secrets\\{secrets.SecretsId}.json";
+                                    if (!configFiles.ContainsKey(secrets.FilePath))
                                     {
-                                        var configFile = new ConfigFile(secrects.FilePath, groupName, _cipher);
-                                        configFile.ProjectFileName = value;
-                                        configFiles.Add(secrects.FilePath, configFile);
+                                        var configFile = new SecretFile(secrets.FilePath, groupName);
+                                        configFile.ProjectFileName = projectFileRelativePath;
+                                        configFile.SecretsId = secrets.SecretsId;
+                                        configFiles.Add(secrets.FilePath, configFile);
                                     }
                                 }
                                 break;
@@ -111,15 +140,14 @@ namespace SolutionSecrets.Core
             int idx = projectFileContent.IndexOf(openTag, StringComparison.InvariantCultureIgnoreCase);
             if (idx >= 0)
             {
-                int endIdx = projectFileContent.IndexOf(closeTag, idx + 1);
+                int endIdx = projectFileContent.IndexOf(closeTag, idx + 1, StringComparison.Ordinal);
                 if (endIdx > idx)
                 {
                     string secretsId = projectFileContent.Substring(idx + openTag.Length, endIdx - idx - openTag.Length);
-                    string userProfileFolder = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
                     return new SecretFileInfo
                     {
                         SecretsId = secretsId,
-                        FilePath = GetSecretsFilePath(secretsId, userProfileFolder, "secrets.json")
+                        FilePath = GetSecretsFilePath(secretsId, "secrets.json")
                     };
                 }
             }
@@ -128,7 +156,7 @@ namespace SolutionSecrets.Core
         }
 
 
-        private SecretFileInfo GetDotNetFrameworkProjectSecretFiles(string projectFileContent, DirectoryInfo projectFolder)
+        private SecretFileInfo GetDotNetFrameworkProjectSecretFiles(string projectFileContent, string projectFolderPath)
         {
             const string openTag = "<ProjectTypeGuids>";
             const string closeTag = "</ProjectTypeGuids>";
@@ -137,16 +165,16 @@ namespace SolutionSecrets.Core
             int idx = projectFileContent.IndexOf(openTag, StringComparison.InvariantCultureIgnoreCase);
             if (idx >= 0)
             {
-                int endIdx = projectFileContent.IndexOf(closeTag, idx + 1);
+                int endIdx = projectFileContent.IndexOf(closeTag, idx + 1, StringComparison.Ordinal);
                 if (endIdx > idx)
                 {
                     string[] projectGuids = projectFileContent.Substring(idx + openTag.Length, endIdx - idx - openTag.Length).ToLower().Split(';');
                     if (projectGuids.Contains(ASPNET_MVC5_PROJECT_GUID))
                     {
-                        var webConfigFiles = projectFolder.GetFiles("web*.config", SearchOption.TopDirectoryOnly);
+                        var webConfigFiles = Directory.GetFiles(projectFolderPath, "web*.config", SearchOption.TopDirectoryOnly);
                         foreach (var webConfigFile in webConfigFiles)
                         {
-                            XDocument xml = XDocument.Load(webConfigFile.FullName);
+                            XDocument xml = XDocument.Load(webConfigFile);
                             var addNodes = xml.Descendants(XName.Get("configBuilders"))
                                 .Descendants(XName.Get("builders"))
                                 .Descendants(XName.Get("add"));
@@ -158,15 +186,14 @@ namespace SolutionSecrets.Core
                                 string type = node.Attribute(XName.Get("type"))?.Value;
 
                                 if (name == "Secrets"
-                                    && userSecretsId != null
+                                    && userSecretsId != null 
                                     && type != null
                                     && type.StartsWith(secretsBuilderTypeName, StringComparison.OrdinalIgnoreCase))
                                 {
-                                    string userProfileFolder = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
                                     return new SecretFileInfo
                                     {
                                         SecretsId = userSecretsId,
-                                        FilePath = GetSecretsFilePath(userSecretsId, userProfileFolder, "secrets.xml")
+                                        FilePath = GetSecretsFilePath(userSecretsId, "secrets.xml")
                                     };
                                 }
                             }
@@ -179,26 +206,27 @@ namespace SolutionSecrets.Core
         }
 
 
-        public void SaveConfigFile(ConfigFile configFile)
+        public void SaveSecretSettingsFile(SecretFile configFile)
         {
-            string secretsId = configFile.GroupName.Substring(8, 36);
-            string userProfileFolder = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-            string filePath = GetSecretsFilePath(secretsId, userProfileFolder, configFile.FileName);
+            string secretsId = configFile.ContainerName.Substring(8, 36);
+            string filePath = GetSecretsFilePath(secretsId, configFile.Name);
 
             FileInfo fileInfo = new FileInfo(filePath);
             if (fileInfo.Directory != null && !fileInfo.Directory.Exists)
             {
                 Directory.CreateDirectory(fileInfo.Directory.FullName);
             }
-            File.WriteAllText(filePath, configFile.Content);
+            File.WriteAllText(filePath, configFile.Content ?? String.Empty);
         }
 
 
-        private static string GetSecretsFilePath(string secretsId, string userProfileFolder, string fileName)
+        private static string GetSecretsFilePath(string secretsId, string fileName)
         {
-            return (Environment.OSVersion.Platform == System.PlatformID.Win32NT) ?
-                $"{userProfileFolder}\\AppData\\Roaming\\Microsoft\\UserSecrets\\{secretsId}\\{fileName}" :
-                $"{userProfileFolder}/.microsoft/usersecrets/{secretsId}/{fileName}";
+            return Path.Combine(
+                Context.Current.IO.GetSecretsFolderPath(),
+                secretsId,
+                fileName
+                );
         }
     }
 }

@@ -1,14 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
-using System.Runtime.InteropServices;
 using System.Text;
+using System.Text.Json;
 using System.Threading.Tasks;
-using Newtonsoft.Json;
+using SolutionSecrets.Core.Utilities;
 
 
 namespace SolutionSecrets.Core.Repository
@@ -22,27 +21,24 @@ namespace SolutionSecrets.Core.Repository
         private const string CLIENT_ID = "b0e87a43f71306d87649";
         private const string SCOPE = "gist";
 
+        private const int GIST_PER_PAGE = 100;
+        private const int GIST_PAGES_LIMIT = 1000;
+
+
         private DeviceFlowResponse _deviceFlowResponse;
 
         private string _oauthAccessToken;
-        private string _repositoryName;
-        private Gist _gist;
 
 
-        public string SolutionName
-        {
-            get
-            {
-                return _repositoryName;
-            }
-            set
-            {
-                _repositoryName = value;
-                _gist = null;
-            }
-        }
+        public bool EncryptOnClient => true;
+        public string RepositoryType => "GitHub";
+        public string RepositoryName { get; set; }
+
+        public string GetFriendlyName() => RepositoryName;
 
 
+
+        #region GitHub Gists data model
 
         class DeviceFlowResponse
         {
@@ -90,6 +86,8 @@ namespace SolutionSecrets.Core.Repository
             public string access_token { get; set; }
         }
 
+        #endregion
+
 
 
         public GistRepository()
@@ -98,10 +96,18 @@ namespace SolutionSecrets.Core.Repository
         }
 
 
+        private bool _isReadyCalled;
+        private bool _isReadyResult;
+
         public async Task<bool> IsReady()
         {
-            await CheckAccessToken();
-            return _oauthAccessToken != null;
+            if (!_isReadyCalled)
+            {
+                _isReadyCalled = true;
+                await CheckAccessToken();
+                _isReadyResult = _oauthAccessToken != null;
+            }
+            return _isReadyResult;
         }
 
 
@@ -109,29 +115,33 @@ namespace SolutionSecrets.Core.Repository
         {
             var repositoryData = AppData.LoadData<RepositoryAppData>(APP_DATA_FILENAME);
             _oauthAccessToken = repositoryData?.access_token;
+            _isReadyCalled = false;
+            _isReadyResult = false;
             return Task.CompletedTask;
         }
 
 
-        public async Task<string> StartDeviceFlowAuthorizationAsync()
+        public async Task AuthorizeAsync()
         {
             _deviceFlowResponse = await SendRequest<DeviceFlowResponse>(HttpMethod.Post, $"https://github.com/login/device/code?client_id={CLIENT_ID}&scope={SCOPE}");
-            return _deviceFlowResponse?.user_code;
-        }
-
-
-        public async Task CompleteDeviceFlowAuthorizationAsync()
-        {
             if (_deviceFlowResponse == null)
             {
                 return;
             }
 
+            string user_code = _deviceFlowResponse.user_code;
+            if (user_code == null)
+            {
+                return;
+            }
+
+            Console.WriteLine($"\nAuthenticate on GitHub with Device code = {user_code}\n");
+
             await CheckAccessToken();
 
             if (_oauthAccessToken == null)
             {
-                OpenBrowser(_deviceFlowResponse.verification_uri);
+                WebBrowser.OpenUrl(_deviceFlowResponse.verification_uri);
 
                 for (int seconds = _deviceFlowResponse.expires_in; seconds > 0; seconds -= _deviceFlowResponse.interval)
                 {
@@ -158,40 +168,90 @@ namespace SolutionSecrets.Core.Repository
         }
 
 
-        private async Task<Gist> GetGistAsync()
+        public async Task<ICollection<SolutionSettings>> PullAllSecretsAsync()
         {
-            if (_gist == null && _repositoryName != null)
+            var data = new List<SolutionSettings>();
+
+            for (int page = 1; page < GIST_PAGES_LIMIT; page++)
             {
-                const int GIST_PER_PAGE = 100;
-                for (int page = 1; page < 1000; page++)
+                var gists = await SendRequest<List<Gist>>(HttpMethod.Get, $"https://api.github.com/gists?per_page={GIST_PER_PAGE}&page={page}");
+                if (gists == null || gists.Count == 0)
                 {
-                    var gists = await SendRequest<List<Gist>>(HttpMethod.Get, $"https://api.github.com/gists?per_page={GIST_PER_PAGE}&page={page}");
-                    if (gists == null || gists.Count == 0)
+                    break;
+                }
+                for (int i = 0; i < gists.Count; i++)
+                {
+                    var gist = gists[i];
+                    if (gist.files == null)
                     {
-                        break;
+                        continue;
                     }
-                    for (int i = 0; i < gists.Count; i++)
+
+                    // Check if the gist is a solution secrets
+                    HeaderFile header = await GetHeaderFile(gist);
+                    if (header == null)
                     {
-                        var gist = gists[i];
-                        if (gist.description == _repositoryName)
+                        continue;
+                    }
+                    else if (!header.IsVersionSupported())
+                    {
+                        Console.WriteLine($"\n    ERR: Header file has incompatible version {header.visualStudioSolutionSecretsVersion}");
+                        Console.WriteLine($"\n         Consider to install an updated version of this tool.");
+                        continue;
+                    }
+
+                    if (header.solutionFile != null)
+                    {
+                        var files = new List<(string name, string content)>();
+
+                        foreach (var file in gist.files)
                         {
-                            return _gist = gist;
+                            if (file.Key == "secrets")
+                            {
+                                continue;
+                            }
+
+                            string content = file.Value.content;
+                            if (content == null && file.Value.raw_url != null)
+                            {
+                                try
+                                {
+                                    content = await GetRawContent(file.Value.raw_url);
+                                }
+                                catch
+                                {
+                                    continue;
+                                }
+                            }
+                            files.Add((file.Key, content));
+                        }
+
+                        if (files.Count > 0)
+                        {
+                            var solutionSettings = new SolutionSettings
+                            {
+                                Name = header.solutionFile,
+                                Settings = files
+                            };
+
+                            data.Add(solutionSettings);
                         }
                     }
-                    if (gists.Count < GIST_PER_PAGE)
-                    {
-                        break;
-                    }
+                }
+                if (gists.Count < GIST_PER_PAGE)
+                {
+                    break;
                 }
             }
-            return _gist;
+
+            return data;
         }
 
 
-        public async Task<ICollection<(string name, string content)>> PullFilesAsync()
+        public async Task<ICollection<(string name, string content)>> PullFilesAsync(ISolution solution)
         {
-            List<(string name, string content)> files = new List<(string name, string content)>();
-            var gist = await GetGistAsync();
+            var files = new List<(string name, string content)>();
+            var gist = await GetGistAsync(solution);
             if (gist?.files != null)
             {
                 foreach (var file in gist.files)
@@ -199,10 +259,9 @@ namespace SolutionSecrets.Core.Repository
                     string content = file.Value.content;
                     if (content == null && file.Value.raw_url != null)
                     {
-                        HttpClient httpClient = new HttpClient();
                         try
                         {
-                            content = await httpClient.GetStringAsync(file.Value.raw_url);
+                            content = await GetRawContent(file.Value.raw_url);
                         }
                         catch
                         {
@@ -216,9 +275,13 @@ namespace SolutionSecrets.Core.Repository
         }
 
 
-        public async Task<bool> PushFilesAsync(ICollection<(string name, string content)> files)
+        public async Task<bool> PushFilesAsync(ISolution solution, ICollection<(string name, string content)> files)
         {
-            var gist = await GetGistAsync();
+            var gist = await GetGistAsync(solution);
+            if (gist != null)
+            {
+                await DeleteGist(gist);
+            }
 
             HttpClient client = new HttpClient(new HttpClientHandler()
             {
@@ -230,15 +293,16 @@ namespace SolutionSecrets.Core.Repository
             if (client.DefaultRequestHeaders.UserAgent.TryParseAdd(Constants.USER_AGENT))
                 client.DefaultRequestHeaders.Add("User-Agent", Constants.USER_AGENT);
 
-            HttpRequestMessage request = gist == null ?
-                new HttpRequestMessage(HttpMethod.Post, "https://api.github.com/gists") :
-                new HttpRequestMessage(new HttpMethod("PATCH"), String.Format("https://api.github.com/gists/{0}", gist.id));
+            HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, "https://api.github.com/gists");
 
             request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.github.v3+json"));
 
+            string gistDescription = solution.Name;
+            if (solution.Uid != Guid.Empty) gistDescription += $" ({solution.Uid})";
+
             var payload = new Gist
             {
-                description = _repositoryName,
+                description = gistDescription,
                 @public = false,
                 files = new Dictionary<string, GistFile>()
             };
@@ -256,12 +320,110 @@ namespace SolutionSecrets.Core.Repository
 #if NET5_0_OR_GREATER
                 string payloadJson = JsonSerializer.Serialize(payload, new JsonSerializerOptions { DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull });
 #else
-                string payloadJson = JsonConvert.SerializeObject(payload, new JsonSerializerSettings { NullValueHandling = NullValueHandling.Ignore });
+                string payloadJson = JsonSerializer.Serialize(payload, new JsonSerializerOptions { IgnoreNullValues = true });
 #endif
                 request.Content = new StringContent(payloadJson, Encoding.UTF8, "application/json");
 
+                Debug.WriteLine($"{request.Method} {request.RequestUri}");
                 var response = await client.SendAsync(request);
-                var responseJson = await response.Content.ReadAsStringAsync();
+                return response.IsSuccessStatusCode;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"ERR: {ex.Message}");
+                return false;
+            }
+        }
+
+
+        public bool IsValid() => true;
+
+
+        private async Task<Gist> GetGistAsync(ISolution solution)
+        {
+            string gistDescription = solution.Name;
+            if (solution.Uid != Guid.Empty) gistDescription += $" ({solution.Uid})";
+
+            for (int page = 1; page < GIST_PAGES_LIMIT; page++)
+            {
+                var gists = await SendRequest<List<Gist>>(HttpMethod.Get, $"https://api.github.com/gists?per_page={GIST_PER_PAGE}&page={page}", useCache: true);
+                if (gists == null || gists.Count == 0)
+                {
+                    break;
+                }
+                for (int i = 0; i < gists.Count; i++)
+                {
+                    var gist = gists[i];
+                    if (
+                        gist.description == gistDescription
+                        || gist.description == solution.Name     // For compatibility with version 1.x.x format
+                        )
+                    {
+                        return gist;
+                    }
+                }
+                if (gists.Count < GIST_PER_PAGE)
+                {
+                    break;
+                }
+            }
+            return null;
+        }
+
+
+        private async Task<HeaderFile> GetHeaderFile(Gist gist)
+        {
+            if (gist.files != null)
+            {
+                foreach (var file in gist.files)
+                {
+                    if (file.Key == "secrets")
+                    {
+                        if (file.Value.raw_url != null)
+                        {
+                            string content = null;
+                            try
+                            {
+                                content = await GetRawContent(file.Value.raw_url);
+                                if (content != null)
+                                {
+                                    return JsonSerializer.Deserialize<HeaderFile>(content);
+                                }
+                            }
+                            catch
+                            { }
+                        }
+                        break;
+                    }
+                }
+            }
+            return null;
+        }
+
+
+        private async Task<bool> DeleteGist(Gist gist)
+        {
+            if (gist == null)
+                throw new ArgumentNullException(nameof(gist));
+
+            HttpClient client = new HttpClient(new HttpClientHandler()
+            {
+                AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate,
+            });
+
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _oauthAccessToken);
+
+            if (client.DefaultRequestHeaders.UserAgent.TryParseAdd(Constants.USER_AGENT))
+                client.DefaultRequestHeaders.Add("User-Agent", Constants.USER_AGENT);
+
+            HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Delete, $"https://api.github.com/gists/{gist.id}");
+
+            request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.github+json"));
+
+            try
+            {
+                Debug.WriteLine($"{request.Method} {request.RequestUri}");
+                var response = await client.SendAsync(request);
                 return response.IsSuccessStatusCode;
             }
             catch
@@ -293,6 +455,7 @@ namespace SolutionSecrets.Core.Repository
             message.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
             try
             {
+                Debug.WriteLine($"{message.Method} {message.RequestUri}");
                 var response = await client.SendAsync(message).ConfigureAwait(false);
                 if (response.StatusCode != HttpStatusCode.NotFound)
                 {
@@ -310,66 +473,82 @@ namespace SolutionSecrets.Core.Repository
         }
 
 
-        private async Task<T> SendRequest<T>(HttpMethod method, string uri)
+        private Dictionary<string, string> _requestsCache = new Dictionary<string, string>();
+
+        private async Task<T> SendRequest<T>(HttpMethod method, string uri, bool useCache = false)
             where T : class, new()
         {
-            HttpClient client = new HttpClient(new HttpClientHandler()
+            string content = null;
+            string cacheKey = $"{method} {uri}";
+
+            if (useCache && _requestsCache.ContainsKey(cacheKey))
             {
-                AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate,
-            });
+                content = _requestsCache[cacheKey];
+            }
 
-            if (_oauthAccessToken != null)
-                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _oauthAccessToken);
-
-            if (client.DefaultRequestHeaders.UserAgent.TryParseAdd(Constants.USER_AGENT))
-                client.DefaultRequestHeaders.Add("User-Agent", Constants.USER_AGENT);
-
-            var message = new HttpRequestMessage(method, uri);
-            message.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-            try
+            if (content == null)
             {
-                var response = await client.SendAsync(message).ConfigureAwait(false);
-                if (response.IsSuccessStatusCode)
+                HttpClient client = new HttpClient(new HttpClientHandler()
                 {
-                    var jsonContent = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
-                    var data = JsonConvert.DeserializeObject<T>(jsonContent);
-                    return data;
+                    AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate,
+                });
+
+                if (_oauthAccessToken != null)
+                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _oauthAccessToken);
+
+                if (client.DefaultRequestHeaders.UserAgent.TryParseAdd(Constants.USER_AGENT))
+                    client.DefaultRequestHeaders.Add("User-Agent", Constants.USER_AGENT);
+
+                var message = new HttpRequestMessage(method, uri);
+                message.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+
+                try
+                {
+                    Debug.WriteLine($"{message.Method} {message.RequestUri}");
+                    var response = await client.SendAsync(message).ConfigureAwait(false);
+                    if (response.IsSuccessStatusCode)
+                    {
+                        content = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+                        if (content != null)
+                        {
+                            _requestsCache[cacheKey] = content;
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"ERR: {ex.Message}");
                 }
             }
-            catch (Exception ex)
+
+            if (content != null)
             {
-                Console.WriteLine($"ERR: {ex.Message}");
+                try
+                {
+                    var data = JsonSerializer.Deserialize<T>(content);
+                    return data;
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"ERR: {ex.Message}");
+                }
             }
+
             return null;
         }
 
 
-        private static void OpenBrowser(string url)
+        private async Task<string> GetRawContent(string uri)
         {
+            HttpClient httpClient = new HttpClient();
+            Debug.WriteLine($"GET {uri}");
             try
             {
-                Process.Start(url);
+                return await httpClient.GetStringAsync(uri);
             }
-            catch
+            catch (Exception)
             {
-                // hack because of this: https://github.com/dotnet/corefx/issues/10361
-                if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-                {
-                    url = url.Replace("&", "^&");
-                    Process.Start(new ProcessStartInfo("cmd", $"/c start {url}") { CreateNoWindow = true });
-                }
-                else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-                {
-                    Process.Start("xdg-open", url);
-                }
-                else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-                {
-                    Process.Start("open", url);
-                }
-                else
-                {
-                    throw;
-                }
+                throw;
             }
         }
 

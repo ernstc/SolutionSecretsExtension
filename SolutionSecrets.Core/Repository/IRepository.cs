@@ -6,12 +6,17 @@ using System.Threading.Tasks;
 
 namespace SolutionSecrets.Core.Repository
 {
+
     public interface IRepository : IService
     {
-        string SolutionName { get; set; }
-        Task<string> StartDeviceFlowAuthorizationAsync();
-        Task CompleteDeviceFlowAuthorizationAsync();
-        Task<bool> PushFilesAsync(ICollection<(string name, string content)> files);
-        Task<ICollection<(string name, string content)>> PullFilesAsync();
+        bool EncryptOnClient { get; }
+        string RepositoryType { get; }
+        string RepositoryName { get; set; }
+        string GetFriendlyName();
+        Task AuthorizeAsync();
+        Task<bool> PushFilesAsync(ISolution solution, ICollection<(string name, string content)> files);
+        Task<ICollection<(string name, string content)>> PullFilesAsync(ISolution solution);
+        Task<ICollection<SolutionSettings>> PullAllSecretsAsync();
+        bool IsValid();
     }
 }

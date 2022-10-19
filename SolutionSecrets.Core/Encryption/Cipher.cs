@@ -6,7 +6,6 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 
-
 namespace SolutionSecrets.Core.Encryption
 {
     public class Cipher : ICipher
@@ -20,13 +19,6 @@ namespace SolutionSecrets.Core.Encryption
         class CipherAppData
         {
             public string key { get; set; }
-        }
-
-
-
-        public Cipher()
-        {
-            RefreshStatus();
         }
 
 
@@ -98,7 +90,7 @@ namespace SolutionSecrets.Core.Encryption
         }
 
 
-        public string Encrypt(string fileName, string plainText)
+        public string Encrypt(string plainText)
         {
             try
             {
@@ -151,7 +143,7 @@ namespace SolutionSecrets.Core.Encryption
         }
 
 
-        public string Decrypt(string fileName, string encrypted)
+        public string Decrypt(string encrypted)
         {
             try
             {
@@ -209,4 +201,3 @@ namespace SolutionSecrets.Core.Encryption
 
     }
 }
-
