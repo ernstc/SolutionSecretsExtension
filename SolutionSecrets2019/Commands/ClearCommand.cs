@@ -14,7 +14,7 @@ using Task = System.Threading.Tasks.Task;
 namespace SolutionSecrets2019.Commands
 {
 
-	internal sealed class DeleteLocallyCommand : CommandAsync
+	internal sealed class ClearCommand : CommandAsync
 	{
 
 		public const int CommandId = PackageIds.cmdidDeleteSecrets;
@@ -22,7 +22,7 @@ namespace SolutionSecrets2019.Commands
 		public static readonly Guid CommandSet = PackageGuids.guidSolutionSecrets2019CmdSet;
 
 
-		public static DeleteLocallyCommand Instance {
+		public static ClearCommand Instance {
 			get;
 			private set;
 		}
@@ -32,11 +32,11 @@ namespace SolutionSecrets2019.Commands
 		{
 			await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync(package.DisposalToken);
 			OleMenuCommandService commandService = await package.GetServiceAsync(typeof(IMenuCommandService)) as OleMenuCommandService;
-			Instance = new DeleteLocallyCommand(package, commandService);
+			Instance = new ClearCommand(package, commandService);
 		}
 
 
-		private DeleteLocallyCommand(AsyncPackage package, OleMenuCommandService commandService)
+		private ClearCommand(AsyncPackage package, OleMenuCommandService commandService)
 			: base(package)
 		{
 			commandService = commandService ?? throw new ArgumentNullException(nameof(commandService));
@@ -56,10 +56,10 @@ namespace SolutionSecrets2019.Commands
 
 		private async Task DeleteLocallyAsync()
 		{
-			MessageBoxResult result = System.Windows.MessageBox.Show("You are about to locally delete all the secrets for this solution.\nAre you sure?", Constants.MESSAGE_BOX_TITLE, MessageBoxButton.YesNo, MessageBoxImage.Exclamation, MessageBoxResult.No);
+			MessageBoxResult result = System.Windows.MessageBox.Show("You are about to clear all the secrets for this solution on this machine.\nAre you sure?", Constants.MESSAGE_BOX_TITLE, MessageBoxButton.YesNo, MessageBoxImage.Exclamation, MessageBoxResult.No);
 			if (result != MessageBoxResult.Yes)
 			{
-				await UseStatusBarAsync($"Solution secrets deletetion has been aborted.");
+				await UseStatusBarAsync($"Solution secrets clearing has been aborted.");
 				return;
 			}
 
@@ -68,7 +68,7 @@ namespace SolutionSecrets2019.Commands
 
 			SolutionFile solution = new SolutionFile(solutionFullName);
 
-			var configFiles = solution.GetProjectsSecretConfigFiles();
+			var configFiles = solution.GetProjectsSecretFiles();
 			if (configFiles.Count == 0)
 			{
 				return;
@@ -78,7 +78,7 @@ namespace SolutionSecrets2019.Commands
 			bool deleted = false;
 			foreach (var configFile in configFiles)
 			{
-				FileInfo file = new FileInfo(configFile.FilePath);
+				FileInfo file = new FileInfo(configFile.Path);
 				if (file.Directory.Exists)
 				{
 					try
@@ -96,12 +96,12 @@ namespace SolutionSecrets2019.Commands
 			if (!failed)
 			{
 				if (deleted)
-					await UseStatusBarAsync("Solution secrets deleted locally.");
+					await UseStatusBarAsync("Solution secrets cleared.");
 				else
 					await UseStatusBarAsync("No local secrets found.");
 			}
 			else
-				await UseStatusBarAsync("Local deletion of solution secrets failed!");
+				await UseStatusBarAsync("Solution secrets clearing has failed!");
 		}
 
 	}

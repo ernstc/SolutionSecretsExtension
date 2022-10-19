@@ -7,7 +7,10 @@ using Microsoft;
 using Microsoft.VisualStudio;
 using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.TextTemplating.VSHost;
+using SolutionSecrets.Core.Encryption;
+using SolutionSecrets.Core.Repository;
 using SolutionSecrets2019.Commands;
+using CoreContext = SolutionSecrets.Core.Context;
 using Task = System.Threading.Tasks.Task;
 
 
@@ -53,10 +56,19 @@ namespace SolutionSecrets2019
 			_dte = await GetServiceAsync(typeof(DTE)) as DTE2;
 			Assumes.Present(_dte);
 
+			var cipher = new Cipher();
+			await cipher.RefreshStatus();
+			CoreContext.Current.AddService<ICipher>(cipher);
+
+			var defaultRepository = new GistRepository();
+			CoreContext.Current.AddService<IRepository>(defaultRepository);
+			CoreContext.Current.AddService<IRepository>(defaultRepository, nameof(RepositoryTypesEnum.GitHub));
+			CoreContext.Current.AddService<IRepository>(new AzureKeyVaultRepository(), nameof(RepositoryTypesEnum.AzureKV));
+
 			await ConfigureCommand.InitializeAsync(this);
 			await PullCommand.InitializeAsync(this);
 			await PushCommand.InitializeAsync(this);
-			await DeleteLocallyCommand.InitializeAsync(this);
+			await ClearCommand.InitializeAsync(this);
 		}
 	}
 }
