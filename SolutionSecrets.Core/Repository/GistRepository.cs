@@ -168,6 +168,51 @@ namespace SolutionSecrets.Core.Repository
         }
 
 
+        public async Task<string> StartDeviceFlowAuthorizationAsync()
+        {
+            _deviceFlowResponse = await SendRequest<DeviceFlowResponse>(HttpMethod.Post, $"https://github.com/login/device/code?client_id={CLIENT_ID}&scope={SCOPE}");
+            return _deviceFlowResponse?.user_code;
+        }
+
+
+        public async Task CompleteDeviceFlowAuthorizationAsync()
+        {
+            if (_deviceFlowResponse == null)
+            {
+                return;
+            }
+
+            await CheckAccessToken();
+
+            if (_oauthAccessToken == null)
+            {
+                WebBrowser.OpenUrl(_deviceFlowResponse.verification_uri);
+
+                for (int seconds = _deviceFlowResponse.expires_in; seconds > 0; seconds -= _deviceFlowResponse.interval)
+                {
+                    var accessTokenResponse = await SendRequest<AccessTokenResponse>(
+                        HttpMethod.Post,
+                        $"https://github.com/login/oauth/access_token?client_id={CLIENT_ID}&device_code={_deviceFlowResponse.device_code}&grant_type=urn:ietf:params:oauth:grant-type:device_code"
+                        );
+
+                    if (accessTokenResponse?.access_token != null)
+                    {
+                        _oauthAccessToken = accessTokenResponse.access_token;
+
+                        AppData.SaveData(APP_DATA_FILENAME, new RepositoryAppData
+                        {
+                            access_token = _oauthAccessToken
+                        });
+
+                        break;
+                    }
+
+                    await Task.Delay(1000 * _deviceFlowResponse.interval);
+                }
+            }
+        }
+
+
         public async Task<ICollection<SolutionSettings>> PullAllSecretsAsync()
         {
             var data = new List<SolutionSettings>();
@@ -346,7 +391,7 @@ namespace SolutionSecrets.Core.Repository
 
             for (int page = 1; page < GIST_PAGES_LIMIT; page++)
             {
-                var gists = await SendRequest<List<Gist>>(HttpMethod.Get, $"https://api.github.com/gists?per_page={GIST_PER_PAGE}&page={page}", useCache: true);
+                var gists = await SendRequest<List<Gist>>(HttpMethod.Get, $"https://api.github.com/gists?per_page={GIST_PER_PAGE}&page={page}");
                 if (gists == null || gists.Count == 0)
                 {
                     break;
@@ -473,18 +518,11 @@ namespace SolutionSecrets.Core.Repository
         }
 
 
-        private Dictionary<string, string> _requestsCache = new Dictionary<string, string>();
-
-        private async Task<T> SendRequest<T>(HttpMethod method, string uri, bool useCache = false)
+        private async Task<T> SendRequest<T>(HttpMethod method, string uri)
             where T : class, new()
         {
             string content = null;
             string cacheKey = $"{method} {uri}";
-
-            if (useCache && _requestsCache.ContainsKey(cacheKey))
-            {
-                content = _requestsCache[cacheKey];
-            }
 
             if (content == null)
             {
@@ -509,10 +547,6 @@ namespace SolutionSecrets.Core.Repository
                     if (response.IsSuccessStatusCode)
                     {
                         content = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
-                        if (content != null)
-                        {
-                            _requestsCache[cacheKey] = content;
-                        }
                     }
                 }
                 catch (Exception ex)

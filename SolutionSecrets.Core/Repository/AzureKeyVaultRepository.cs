@@ -293,5 +293,15 @@ namespace SolutionSecrets.Core.Repository
 
         public bool IsValid() => _repositoryName != null;
 
+
+        public Task<string> StartDeviceFlowAuthorizationAsync()
+        {
+            return Task.FromResult<string>(null);
+        }
+
+        public Task CompleteDeviceFlowAuthorizationAsync()
+        {
+            return Task.CompletedTask;
+        }
     }
 }

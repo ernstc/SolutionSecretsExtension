@@ -18,5 +18,7 @@ namespace SolutionSecrets.Core.Repository
         Task<ICollection<(string name, string content)>> PullFilesAsync(ISolution solution);
         Task<ICollection<SolutionSettings>> PullAllSecretsAsync();
         bool IsValid();
+        Task<string> StartDeviceFlowAuthorizationAsync();
+        Task CompleteDeviceFlowAuthorizationAsync();
     }
 }
