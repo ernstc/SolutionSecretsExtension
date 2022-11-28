@@ -4,7 +4,6 @@ using System.IO;
 using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
-using Newtonsoft.Json;
 
 
 namespace SolutionSecrets.Core
@@ -12,9 +11,11 @@ namespace SolutionSecrets.Core
     public static class AppData
     {
 
-        private static JsonSerializerSettings serializerSettings = new JsonSerializerSettings
+        private static JsonSerializerOptions jsonSeriazerOptions = new JsonSerializerOptions
         {
-            Formatting = Formatting.Indented
+            WriteIndented = true,
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            IgnoreNullValues = true
         };
 
 
@@ -26,7 +27,7 @@ namespace SolutionSecrets.Core
                 try
                 {
                     string json = File.ReadAllText(filePath);
-                    return JsonConvert.DeserializeObject<T>(json, serializerSettings);
+                    return JsonSerializer.Deserialize<T>(json, jsonSeriazerOptions);
                 }
                 catch
                 { }
@@ -42,7 +43,7 @@ namespace SolutionSecrets.Core
             string filePath = Path.Combine(folderPath, fileName);
             try
             {
-                string json = JsonConvert.SerializeObject(data, serializerSettings);
+                string json = JsonSerializer.Serialize<T>(data, jsonSeriazerOptions);
                 File.WriteAllText(filePath, json);
             }
             catch
