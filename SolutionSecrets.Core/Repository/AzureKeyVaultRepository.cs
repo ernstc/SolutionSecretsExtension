@@ -72,22 +72,22 @@ namespace SolutionSecrets.Core.Repository
 
         public string GetFriendlyName()
         {
-            if (RepositoryName == null)
+            if (_repositoryName == null)
             {
                 return null;
             }
 
-            string name = RepositoryName;
+            string name = _repositoryName;
             name = name.Substring(8);
             name = name.Substring(0, name.IndexOf(".vault.", StringComparison.Ordinal));
 
-            string cloudDomain = RepositoryName.ToLower();
+            string cloudDomain = _repositoryName;
             cloudDomain = cloudDomain.Substring(cloudDomain.IndexOf(".vault.", StringComparison.Ordinal));
 
             if (_clouds.TryGetValue(cloudDomain, out var cloud))
                 return $"{cloud} ({name})";
             else
-                return RepositoryName;
+                return _repositoryName;
         }
 
 
@@ -150,6 +150,9 @@ namespace SolutionSecrets.Core.Repository
 
         public async Task<ICollection<(string name, string content)>> PullFilesAsync(ISolution solution)
         {
+            if (solution == null)
+                throw new ArgumentNullException(nameof(solution));
+
             var files = new List<(string name, string content)>();
 
             if (_client == null)
@@ -196,6 +199,12 @@ namespace SolutionSecrets.Core.Repository
 
         public async Task<bool> PushFilesAsync(ISolution solution, ICollection<(string name, string content)> files)
         {
+            if (solution == null)
+                throw new ArgumentNullException(nameof(solution));
+
+            if (files == null)
+                throw new ArgumentNullException(nameof(files));
+
             if (_client == null)
             {
                 return false;
@@ -249,6 +258,7 @@ namespace SolutionSecrets.Core.Repository
                             }
                             catch (Azure.RequestFailedException aex2)
                             {
+#pragma warning disable CA1508
                                 if (aex2.Status == 403)
                                 {
                                     Console.WriteLine($"\nERR: Cannot proceed with the operation.\n     Check if there is a secret named \"{secretName}\" that is deleted, but recoverable. In that case purge the secret or recover it before pushing local secrets.");
@@ -257,6 +267,7 @@ namespace SolutionSecrets.Core.Repository
                                 {
                                     Console.WriteLine($"\nERR: Cannot proceed with the operation.\n     There is a conflict with the secret named \"{secretName}\" that cannot be resolved. Contact the administrator of the Key Vault.");
                                 }
+#pragma warning restore CA1508
                                 return false;
                             }
                             catch (Exception)

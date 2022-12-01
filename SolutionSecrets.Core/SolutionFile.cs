@@ -65,7 +65,7 @@ namespace SolutionSecrets.Core
         {
             get
             {
-                return Configuration.GetCustomSynchronizationSettings(_uid);
+                return SyncConfiguration.GetCustomSynchronizationSettings(_uid);
             }
         }
 
@@ -132,7 +132,7 @@ namespace SolutionSecrets.Core
         }
 
 
-        private SecretFileInfo GetProjectSecretsFilePath(string projectFileContent)
+        private static SecretFileInfo GetProjectSecretsFilePath(string projectFileContent)
         {
             const string openTag = "<UserSecretsId>";
             const string closeTag = "</UserSecretsId>";
@@ -156,7 +156,7 @@ namespace SolutionSecrets.Core
         }
 
 
-        private SecretFileInfo GetDotNetFrameworkProjectSecretFiles(string projectFileContent, string projectFolderPath)
+        private static SecretFileInfo GetDotNetFrameworkProjectSecretFiles(string projectFileContent, string projectFolderPath)
         {
             const string openTag = "<ProjectTypeGuids>";
             const string closeTag = "</ProjectTypeGuids>";
@@ -206,8 +206,13 @@ namespace SolutionSecrets.Core
         }
 
 
+#pragma warning disable CA1822
+
         public void SaveSecretSettingsFile(SecretFile configFile)
         {
+            if (configFile == null)
+                throw new ArgumentNullException(nameof(configFile));
+
             string secretsId = configFile.ContainerName.Substring(8, 36);
             string filePath = GetSecretsFilePath(secretsId, configFile.Name);
 
@@ -218,6 +223,8 @@ namespace SolutionSecrets.Core
             }
             File.WriteAllText(filePath, configFile.Content ?? String.Empty);
         }
+
+#pragma warning restore CA1822
 
 
         private static string GetSecretsFilePath(string secretsId, string fileName)

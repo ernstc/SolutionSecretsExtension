@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace SolutionSecrets.Core.Repository
 {
-    public enum RepositoryTypesEnum
+    public enum RepositoryType
     {
         GitHub,
         AzureKV

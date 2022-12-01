@@ -141,7 +141,7 @@ namespace SolutionSecrets.Core.Repository
 
             if (_oauthAccessToken == null)
             {
-                WebBrowser.OpenUrl(_deviceFlowResponse.verification_uri);
+                WebBrowser.OpenUrl(new Uri(_deviceFlowResponse.verification_uri));
 
                 for (int seconds = _deviceFlowResponse.expires_in; seconds > 0; seconds -= _deviceFlowResponse.interval)
                 {
@@ -186,7 +186,7 @@ namespace SolutionSecrets.Core.Repository
 
             if (_oauthAccessToken == null)
             {
-                WebBrowser.OpenUrl(_deviceFlowResponse.verification_uri);
+                WebBrowser.OpenUrl(new Uri(_deviceFlowResponse.verification_uri));
 
                 for (int seconds = _deviceFlowResponse.expires_in; seconds > 0; seconds -= _deviceFlowResponse.interval)
                 {
@@ -273,10 +273,9 @@ namespace SolutionSecrets.Core.Repository
 
                         if (files.Count > 0)
                         {
-                            var solutionSettings = new SolutionSettings
+                            var solutionSettings = new SolutionSettings(files)
                             {
-                                Name = header.solutionFile,
-                                Settings = files
+                                Name = header.solutionFile
                             };
 
                             data.Add(solutionSettings);
