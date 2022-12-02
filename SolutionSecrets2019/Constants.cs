@@ -6,8 +6,8 @@ using System.Threading.Tasks;
 
 namespace SolutionSecrets2019
 {
-    internal static class Constants
-    {
+	internal static class Constants
+	{
 		public const string MESSAGE_BOX_TITLE = "Solution Secrets 2019";
 	}
 }
