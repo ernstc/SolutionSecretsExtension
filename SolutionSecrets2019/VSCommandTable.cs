@@ -27,13 +27,14 @@ namespace SolutionSecrets2019
     internal sealed partial class PackageIds
     {
         public const int menuidSyncSecrets = 0x1100;
-        public const int groupidSyncSecretsConfig = 0x1110;
-        public const int groupidSyncSecretsActions = 0x1120;
-        public const int groupidOtherSecretsActions = 0x1130;
+        public const int groupidSyncSecretsActions = 0x1110;
+        public const int groupidOtherSecretsActions = 0x1120;
+        public const int groupidSyncSecretsConfig = 0x1130;
         public const int groupidSyncSecretsMenu = 0x1200;
         public const int cmdidInitSecrestsSync = 0x0100;
         public const int cmdidPushSecrets = 0x0110;
         public const int cmdidPullSecrets = 0x0120;
         public const int cmdidDeleteSecrets = 0x0130;
+        public const int cmdidGlobalOptions = 0x0140;
     }
 }
