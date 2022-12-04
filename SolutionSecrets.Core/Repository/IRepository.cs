@@ -20,5 +20,6 @@ namespace SolutionSecrets.Core.Repository
         bool IsValid();
         Task<string> StartDeviceFlowAuthorizationAsync();
         Task CompleteDeviceFlowAuthorizationAsync();
+        void AbortAuthorization();
     }
 }

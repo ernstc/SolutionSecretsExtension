@@ -6,6 +6,7 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 using SolutionSecrets.Core.Utilities;
 
@@ -16,7 +17,7 @@ namespace SolutionSecrets.Core.Repository
     public class GistRepository : IRepository
     {
 
-        private const string APP_DATA_FILENAME = "github.json";
+        public const string APP_DATA_FILENAME = "github.json";
 
         private const string CLIENT_ID = "b0e87a43f71306d87649";
         private const string SCOPE = "gist";
@@ -28,6 +29,7 @@ namespace SolutionSecrets.Core.Repository
         private DeviceFlowResponse _deviceFlowResponse;
 
         private string _oauthAccessToken;
+        private CancellationTokenSource _authorizationCancellation = null;
 
 
         public bool EncryptOnClient => true;
@@ -81,7 +83,7 @@ namespace SolutionSecrets.Core.Repository
 
 
 
-        class RepositoryAppData
+        public class RepositoryAppData
         {
             public string access_token { get; set; }
         }
@@ -188,6 +190,9 @@ namespace SolutionSecrets.Core.Repository
             {
                 WebBrowser.OpenUrl(new Uri(_deviceFlowResponse.verification_uri));
 
+                AbortAuthorization();
+                _authorizationCancellation = new CancellationTokenSource();
+
                 for (int seconds = _deviceFlowResponse.expires_in; seconds > 0; seconds -= _deviceFlowResponse.interval)
                 {
                     var accessTokenResponse = await SendRequest<AccessTokenResponse>(
@@ -207,8 +212,29 @@ namespace SolutionSecrets.Core.Repository
                         break;
                     }
 
-                    await Task.Delay(1000 * _deviceFlowResponse.interval);
+                    try
+                    {
+                        await Task.Delay(1000 * _deviceFlowResponse.interval, _authorizationCancellation.Token);
+                    }
+                    catch (TaskCanceledException)
+                    {
+                        break;
+                    }
                 }
+            }
+        }
+
+
+        public void AbortAuthorization()
+        {
+            if (_authorizationCancellation != null)
+            {
+                if (!_authorizationCancellation.IsCancellationRequested)
+                {
+                    _authorizationCancellation.Cancel();
+                }
+                _authorizationCancellation.Dispose();
+                _authorizationCancellation = null;
             }
         }
 

@@ -45,6 +45,7 @@ namespace SolutionSecrets2019.Options.GitHubGists
             this.btnUndoCompleteAuthorization = new System.Windows.Forms.Button();
             this.btnContinueAuthorization = new System.Windows.Forms.Button();
             this.txtDeviceCode = new System.Windows.Forms.TextBox();
+            this.btnResetAuthorization = new System.Windows.Forms.Button();
             this.btnAuthorize = new System.Windows.Forms.Button();
             this.lblAuthorizationStatus = new System.Windows.Forms.Label();
             this.pnlCreateEncryptionKey = new System.Windows.Forms.Panel();
@@ -78,6 +79,7 @@ namespace SolutionSecrets2019.Options.GitHubGists
             groupBox1.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
             groupBox1.Controls.Add(this.pnlContinueAuthorization);
+            groupBox1.Controls.Add(this.btnResetAuthorization);
             groupBox1.Controls.Add(this.btnAuthorize);
             groupBox1.Controls.Add(this.lblAuthorizationStatus);
             groupBox1.Controls.Add(label7);
@@ -96,7 +98,7 @@ namespace SolutionSecrets2019.Options.GitHubGists
             this.pnlContinueAuthorization.Controls.Add(this.txtDeviceCode);
             this.pnlContinueAuthorization.Controls.Add(label9);
             this.pnlContinueAuthorization.Controls.Add(label8);
-            this.pnlContinueAuthorization.Location = new System.Drawing.Point(6, 110);
+            this.pnlContinueAuthorization.Location = new System.Drawing.Point(1, 110);
             this.pnlContinueAuthorization.Name = "pnlContinueAuthorization";
             this.pnlContinueAuthorization.Size = new System.Drawing.Size(702, 132);
             this.pnlContinueAuthorization.TabIndex = 7;
@@ -148,6 +150,17 @@ namespace SolutionSecrets2019.Options.GitHubGists
             label8.TabIndex = 0;
             label8.Text = "Copy the device code and click on the \"Continue...\" button for proceeding with th" +
     "e authorization process.";
+            // 
+            // btnResetAuthorization
+            // 
+            this.btnResetAuthorization.Location = new System.Drawing.Point(15, 157);
+            this.btnResetAuthorization.Name = "btnResetAuthorization";
+            this.btnResetAuthorization.Size = new System.Drawing.Size(200, 40);
+            this.btnResetAuthorization.TabIndex = 8;
+            this.btnResetAuthorization.Text = "Reset";
+            this.btnResetAuthorization.UseVisualStyleBackColor = true;
+            this.btnResetAuthorization.Visible = false;
+            this.btnResetAuthorization.Click += new System.EventHandler(this.btnResetAuthorization_Click);
             // 
             // btnAuthorize
             // 
@@ -242,6 +255,7 @@ namespace SolutionSecrets2019.Options.GitHubGists
             this.btnGenerateKey.TabIndex = 11;
             this.btnGenerateKey.Text = "Generate key";
             this.btnGenerateKey.UseVisualStyleBackColor = true;
+            this.btnGenerateKey.Click += new System.EventHandler(this.btnGenerateKey_Click);
             // 
             // rbtnPassphrase
             // 
@@ -396,5 +410,6 @@ namespace SolutionSecrets2019.Options.GitHubGists
 		private System.Windows.Forms.Button btnUndoGenerateKey;
 		private System.Windows.Forms.Button btnGenerateKey;
 		private System.Windows.Forms.Button btnUndoCompleteAuthorization;
+		private System.Windows.Forms.Button btnResetAuthorization;
 	}
 }

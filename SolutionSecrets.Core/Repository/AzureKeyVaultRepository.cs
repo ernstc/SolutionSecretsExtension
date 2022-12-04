@@ -310,9 +310,16 @@ namespace SolutionSecrets.Core.Repository
             return Task.FromResult<string>(null);
         }
 
+
         public Task CompleteDeviceFlowAuthorizationAsync()
         {
             return Task.CompletedTask;
         }
+
+
+        public void AbortAuthorization()
+        {
+        }
+
     }
 }

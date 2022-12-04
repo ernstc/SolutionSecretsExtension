@@ -78,7 +78,7 @@
 
                         <Button Name="btnAuthorizeGitHub" Visibility="Collapsed" Width="140" HorizontalAlignment="Left" Click="btnAuthorizeGitHub_Click">Authorize...</Button>
 
-                        <StackPanel Name="panelAuthorizingGitHub" Visibility="Collapsed">
+                        <StackPanel Name="panelAuthorizingGitHub" Visibility="Visible">
                             <TextBlock Grid.Row="0" Grid.ColumnSpan="2" Width="360" TextWrapping="Wrap" HorizontalAlignment="Left" Margin="0,0,0,16">
                                 Copy the device code and click on the "Continue..." button for proceeding with the authorization process.
                             </TextBlock>
