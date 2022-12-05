@@ -34,7 +34,7 @@ namespace SolutionSecrets2019.Commands
 
 
 		private ConfigureCommand(AsyncPackage package, OleMenuCommandService commandService)
-			: base(package)
+			: base(package, commandService)
 		{
 			commandService = commandService ?? throw new ArgumentNullException(nameof(commandService));
 
@@ -48,6 +48,7 @@ namespace SolutionSecrets2019.Commands
 		{
 			ThreadHelper.ThrowIfNotOnUIThread();
 			var dialog = new ConfigDialog();
+			dialog.Initialize(commandService);
 			dialog.ShowDialog();
 		}
 

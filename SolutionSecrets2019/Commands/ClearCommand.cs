@@ -37,7 +37,7 @@ namespace SolutionSecrets2019.Commands
 
 
 		private ClearCommand(AsyncPackage package, OleMenuCommandService commandService)
-			: base(package)
+			: base(package, commandService)
 		{
 			commandService = commandService ?? throw new ArgumentNullException(nameof(commandService));
 
@@ -101,7 +101,9 @@ namespace SolutionSecrets2019.Commands
 					await UseStatusBarAsync("No local secrets found.");
 			}
 			else
+			{
 				await UseStatusBarAsync("Solution secrets clearing has failed!");
+			}
 		}
 
 	}

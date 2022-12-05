@@ -40,7 +40,7 @@ namespace SolutionSecrets2019.Commands
 
 
 		private PullCommand(AsyncPackage package, OleMenuCommandService commandService)
-			: base(package)
+			: base(package, commandService)
 		{
 			commandService = commandService ?? throw new ArgumentNullException(nameof(commandService));
 
@@ -81,8 +81,7 @@ namespace SolutionSecrets2019.Commands
 			{
 				System.Windows.MessageBox.Show("You need to configure the solution secrets synchronization before using the Pull command.", Vsix.Name, MessageBoxButton.OK, MessageBoxImage.Exclamation);
 
-				var dialog = new ConfigDialog();
-				dialog.ShowDialog();
+				OpenOptionsPage<Options.GitHubGists.GitHubGistsOptionPage>();
 
 				return;
 			}

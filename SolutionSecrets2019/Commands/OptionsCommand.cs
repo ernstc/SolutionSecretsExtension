@@ -1,7 +1,5 @@
 ﻿using System;
 using System.ComponentModel.Design;
-using System.Globalization;
-using Microsoft.VisualStudio;
 using Microsoft.VisualStudio.Shell;
 
 using Task = System.Threading.Tasks.Task;
@@ -16,8 +14,6 @@ namespace SolutionSecrets2019.Commands
 		public const int CommandId = PackageIds.cmdidGlobalOptions;
 
 		public static readonly Guid CommandSet = PackageGuids.guidSolutionSecrets2019CmdSet;
-
-		private readonly OleMenuCommandService _commandService;
 
 
 		public static OptionsCommand Instance {
@@ -35,10 +31,8 @@ namespace SolutionSecrets2019.Commands
 
 
 		private OptionsCommand(AsyncPackage package, OleMenuCommandService commandService)
-			: base(package)
+			: base(package, commandService)
 		{
-			_commandService = commandService ?? throw new ArgumentNullException(nameof(commandService));
-
 			var menuCommandID = new CommandID(CommandSet, CommandId);
 			var menuItem = new MenuCommand(this.Execute, menuCommandID);
 			commandService.AddCommand(menuItem);
@@ -47,9 +41,7 @@ namespace SolutionSecrets2019.Commands
 
 		private void Execute(object sender, EventArgs e)
 		{
-			Guid cmdGroup = typeof(VSConstants.VSStd97CmdID).GUID;
-			var cmd = new CommandID(cmdGroup, VSConstants.cmdidToolsOptions);
-			_commandService.GlobalInvoke(cmd, typeof(Options.General.GeneralOptionPage).GUID.ToString());
+			OpenOptionsPage<Options.General.GeneralOptionPage>();
 		}
 
 	}
