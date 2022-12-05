@@ -77,13 +77,13 @@
                             <ColumnDefinition Width="*"></ColumnDefinition>
                         </Grid.ColumnDefinitions>
                         <StackPanel Grid.Column="0">
-                            <StackPanel Orientation="Horizontal">
-                                <Label>Cryptographic key status:</Label>
-                                <Label Name="labelKeyStatus" FontWeight="Bold">Created</Label>
-                            </StackPanel>
                             <StackPanel Name="panelGitHubAuthorizationStatus" Orientation="Horizontal">
                                 <Label>Authorization status:</Label>
                                 <Label Name="labelGitHubAuthorizationStatus" FontWeight="Bold">Authorized</Label>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal">
+                                <Label>Encryption key status:</Label>
+                                <Label Name="labelKeyStatus" FontWeight="Bold">Created</Label>
                             </StackPanel>
                         </StackPanel>
                         <Button Grid.Column="1" VerticalAlignment="Top" HorizontalAlignment="Right" Name="btnConfigureGitHubGists" Visibility="Visible" Width="80" Click="btnConfigureGitHubGists_Click">Options...</Button>
@@ -98,7 +98,7 @@
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
 
-            <Button Name="btnResetToDefaults" Grid.Column="0" Width="120" HorizontalAlignment="Left" Margin="12,0,0,0" Click="btnOk_Click" FontSize="12">Reset to Defaults</Button>
+            <Button Name="btnResetToDefaults" Grid.Column="0" Width="120" HorizontalAlignment="Left" Margin="12,0,0,0" Click="btnOk_Click" FontSize="12" Visibility="Collapsed">Reset to Defaults</Button>
 
             <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
                 <Button Name="btnOk" Width="80" IsDefault="True" Click="btnOk_Click" FontSize="12">OK</Button>
