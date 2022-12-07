@@ -48,7 +48,7 @@ namespace SolutionSecrets2019.Commands
 		{
 			ThreadHelper.ThrowIfNotOnUIThread();
 			var dialog = new ConfigDialog();
-			dialog.Initialize(commandService);
+			dialog.Initialize(package, commandService);
 			dialog.ShowDialog();
 		}
 

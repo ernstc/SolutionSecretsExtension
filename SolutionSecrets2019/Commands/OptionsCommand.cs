@@ -41,7 +41,7 @@ namespace SolutionSecrets2019.Commands
 
 		private void Execute(object sender, EventArgs e)
 		{
-			OpenOptionsPage<Options.General.GeneralOptionPage>();
+			commandService.OpenOption<Options.General.GeneralOptionPage>();
 		}
 
 	}

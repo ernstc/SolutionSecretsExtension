@@ -1,13 +1,10 @@
 ﻿using System;
-using System.ComponentModel.Design;
 using EnvDTE;
 
 using EnvDTE80;
 
 using Microsoft;
-using Microsoft.VisualStudio;
 using Microsoft.VisualStudio.Shell;
-
 using Task = System.Threading.Tasks.Task;
 
 
@@ -41,16 +38,6 @@ namespace SolutionSecrets2019.Commands
 			var dte = await this.package.GetServiceAsync(typeof(DTE)) as DTE;
 			Assumes.Present(dte);
 			dte.StatusBar.Text = message;
-		}
-
-
-		protected void OpenOptionsPage<TPage>()
-			where TPage : DialogPage
-		{
-			Guid cmdGroup = typeof(VSConstants.VSStd97CmdID).GUID;
-			var cmd = new CommandID(cmdGroup, VSConstants.cmdidToolsOptions);
-			commandService.GlobalInvoke(cmd, typeof(TPage).GUID.ToString());
-
 		}
 	}
 }

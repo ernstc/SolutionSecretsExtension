@@ -80,7 +80,7 @@ namespace SolutionSecrets2019.Commands
 			{
 				System.Windows.MessageBox.Show("You need to configure the solution secrets synchronization before using the Push command.", Vsix.Name, MessageBoxButton.OK, MessageBoxImage.Exclamation);
 
-				OpenOptionsPage<Options.GitHubGists.GitHubGistsOptionPage>();
+				commandService.OpenOption<Options.GitHubGists.GitHubGistsOptionPage>();
 
 				return;
 			}

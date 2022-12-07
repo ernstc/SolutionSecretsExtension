@@ -29,8 +29,8 @@ namespace SolutionSecrets2019.Options.GitHubGists
 			_isLoaded = true;
 			_generatingNewEncryptionKey = false;
 
-			await CheckCipherStatusAsync();
 			await CheckRepositoryStatusAsync();
+			await CheckCipherStatusAsync();
 		}
 
 

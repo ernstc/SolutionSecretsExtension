@@ -31,7 +31,6 @@ namespace SolutionSecrets2019.Options.General
 
 		public override void LoadSettingsFromStorage()
 		{
-			SyncConfiguration.Refresh();
 			_page.Initialize();
 		}
 

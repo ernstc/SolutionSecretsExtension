@@ -31,7 +31,6 @@ namespace SolutionSecrets2019.Options.AzureKeyVault
 
 		public override void LoadSettingsFromStorage()
 		{
-			SyncConfiguration.Refresh();
 			_page.Initialize();
 		}
 
