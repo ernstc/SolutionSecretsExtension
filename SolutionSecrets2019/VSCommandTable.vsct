@@ -66,16 +66,6 @@
                     <ButtonText>Synchronization Settings...</ButtonText>
                 </Strings>
             </Button>
-            <Button guid="guidSolutionSecrets2019CmdSet" id="cmdidGlobalOptions" priority="0x0200" type="Button">
-                <Parent guid="guidSolutionSecrets2019CmdSet" id="groupidSyncSecretsConfig" />
-                <Icon guid="ImageCatalogGuid" id="Settings" />
-                <CommandFlag>IconIsMoniker</CommandFlag>
-                <CommandFlag>DynamicVisibility</CommandFlag>
-                <Strings>
-                    <CommandName>GlobalOptions</CommandName>
-                    <ButtonText>Options...</ButtonText>
-                </Strings>
-            </Button>
         </Buttons>
 
     </Commands>
@@ -112,7 +102,6 @@
             <IDSymbol name="cmdidPushSecrets" value="0x0110" />
             <IDSymbol name="cmdidPullSecrets" value="0x0120" />
             <IDSymbol name="cmdidDeleteSecrets" value="0x130"/>
-            <IDSymbol name="cmdidGlobalOptions" value="0x140" />
         </GuidSymbol>
     </Symbols>
 </CommandTable>

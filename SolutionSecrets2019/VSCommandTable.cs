@@ -35,6 +35,5 @@ namespace SolutionSecrets2019
         public const int cmdidPushSecrets = 0x0110;
         public const int cmdidPullSecrets = 0x0120;
         public const int cmdidDeleteSecrets = 0x0130;
-        public const int cmdidGlobalOptions = 0x0140;
     }
 }

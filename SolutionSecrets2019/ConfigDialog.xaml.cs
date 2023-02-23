@@ -1,7 +1,5 @@
 ﻿using System;
 using System.ComponentModel.Design;
-using System.IO;
-using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Forms;
@@ -13,6 +11,8 @@ using Microsoft.VisualStudio.PlatformUI;
 using Microsoft.VisualStudio.Shell;
 using SolutionSecrets.Core;
 using Task = System.Threading.Tasks.Task;
+using CoreContext = SolutionSecrets.Core.Context;
+using SolutionSecrets.Core.Repository;
 
 
 namespace SolutionSecrets2019
@@ -23,9 +23,13 @@ namespace SolutionSecrets2019
 	public partial class ConfigDialog : DialogWindow
 	{
 
-		private bool _isLoaded;
+		const int GITHUB = 0;
+		const int AZURE_KV = 1;
+
+
 		private AsyncPackage _package;
 		private OleMenuCommandService _commandService;
+		private SolutionFile _solution;
 
 
 		public ConfigDialog()
@@ -41,96 +45,92 @@ namespace SolutionSecrets2019
 			_commandService = commandService ?? throw new ArgumentNullException(nameof(commandService));
 
 			var solutionFilePath = SolutionSecrets2019Package._dte.Solution.FullName;
-			SolutionFile solution = new SolutionFile(solutionFilePath);
+			_solution = new SolutionFile(solutionFilePath);
 
-			var customSettings = SyncConfiguration.GetCustomSynchronizationSettings(solution.Uid);
-			if (customSettings == null)
+			var defaultSettings = SyncConfiguration.Default;
+			var customSettings = SyncConfiguration.GetCustomSynchronizationSettings(_solution.Uid) ?? defaultSettings;
+			switch (customSettings.Repository)
 			{
+				case RepositoryType.GitHub:
+					cboxRepositoryType.SelectedIndex = GITHUB;
+					gridGitHubGists.Visibility = Visibility.Visible;
+					break;
 
-				switch (SyncConfiguration.Default.Repository)
-				{
-					case SolutionSecrets.Core.Repository.RepositoryType.GitHub:
-						{
-							cboxRepositoryType.SelectedIndex = 0;
-							gridGitHubGists.Visibility = Visibility.Visible;
-							CheckRepositoryStatusAsync();
-							CheckCipherStatusAsync();
-							break;
-						}
-					case SolutionSecrets.Core.Repository.RepositoryType.AzureKV:
-						{
-							cboxRepositoryType.SelectedIndex = 1;
-							gridAzureKeyVault.Visibility = Visibility.Visible;
-							txtAKVDefaultUrl.Text = SyncConfiguration.Default.AzureKeyVaultName;
-							break;
-						}
-				}
-				btnResetToDefaults.Visibility = Visibility.Collapsed;
+				case RepositoryType.AzureKV:
+					cboxRepositoryType.SelectedIndex = AZURE_KV;
+					gridAzureKeyVault.Visibility = Visibility.Visible;
+					break;
 			}
-			else
-			{
-				switch (customSettings.Repository)
-				{
-					case SolutionSecrets.Core.Repository.RepositoryType.GitHub:
-						{
-							cboxRepositoryType.SelectedIndex = 0;
-							gridGitHubGists.Visibility = Visibility.Visible;
-							CheckRepositoryStatusAsync();
-							CheckCipherStatusAsync();
-							break;
-						}
-					case SolutionSecrets.Core.Repository.RepositoryType.AzureKV:
-						{
-							cboxRepositoryType.SelectedIndex = 1;
-							gridAzureKeyVault.Visibility = Visibility.Visible;
-							txtAKVDefaultUrl.Text = SyncConfiguration.Default.AzureKeyVaultName;
-							txtAKVUrl.Text = customSettings.AzureKeyVaultName ?? SyncConfiguration.Default.AzureKeyVaultName;
-							break;
-						}
-				}
-				btnResetToDefaults.Visibility = Visibility.Visible;
-			}
+
+			CheckRepositoryStatusAsync();
+			CheckCipherStatusAsync();
+
+			txtAKVUrl.Text = customSettings.AzureKeyVaultName ?? defaultSettings.AzureKeyVaultName;
+			btnAKVResetToDefault.Visibility = String.Equals(txtAKVUrl.Text, defaultSettings.AzureKeyVaultName, StringComparison.OrdinalIgnoreCase) ?
+				Visibility.Collapsed :
+				Visibility.Visible;
 		}
 
 
 		private async void CheckRepositoryStatusAsync()
 		{
+			string status;
 			await Services.Repository.RefreshStatus();
 			if (await Services.Repository.IsReady())
 			{
-				labelGitHubAuthorizationStatus.Content = "Authorized";
+				status = "Authorized";
 			}
 			else
 			{
-				labelGitHubAuthorizationStatus.Content = "Not authorized";
+				status = "Not authorized";
 			}
+			await _package.JoinableTaskFactory.SwitchToMainThreadAsync();
+			labelGitHubAuthorizationStatus.Text = status;
 		}
 
 
 		private async void CheckCipherStatusAsync()
 		{
+			string status;
 			await Services.Cipher.RefreshStatus();
 			if (await Services.Cipher.IsReady())
 			{
-				labelKeyStatus.Content = "Created";
+				status = "Created";
 			}
 			else
 			{
-				labelKeyStatus.Content = "Not found";
+				status = "Not found";
 			}
+			await _package.JoinableTaskFactory.SwitchToMainThreadAsync();
+			labelKeyStatus.Text = status;
 		}
 
 
-		private async void ConfigDialog_Loaded(object sender, RoutedEventArgs e)
+		private void ConfigDialog_Loaded(object sender, RoutedEventArgs e)
 		{
-			_isLoaded = true;
 			Title = Vsix.Name;
 		}
 
 
 		private async void btnOk_Click(object sender, RoutedEventArgs e)
 		{
-			if (await ConfigureSolution(reset: false))
+			if (cboxRepositoryType.SelectedIndex == AZURE_KV)
+			{
+				var repository = (AzureKeyVaultRepository)CoreContext.Current.GetService<IRepository>(nameof(RepositoryType.AzureKV));
+				repository.RepositoryName = txtAKVUrl.Text;
+				if (repository.RepositoryName == null)
+				{
+					System.Windows.MessageBox.Show("The key vault URL is not correct.", Constants.MESSAGE_BOX_TITLE, MessageBoxButton.OK);
+					return;
+				}
+				else if (txtAKVUrl.Text != repository.RepositoryName)
+				{
+					await _package.JoinableTaskFactory.SwitchToMainThreadAsync();
+					txtAKVUrl.Text = repository.RepositoryName;
+				}
+			}
+
+			if (await ConfigureSolution())
 			{
 				Close();
 			}
@@ -146,41 +146,29 @@ namespace SolutionSecrets2019
 		}
 
 
-		private async Task<bool> ConfigureSolution(bool reset)
+		private async Task<bool> ConfigureSolution()
 		{
-			var solutionFilePath = SolutionSecrets2019Package._dte.Solution.FullName;
-			SolutionFile solution = new SolutionFile(solutionFilePath);
-
-			if (solution.Uid == Guid.Empty)
+			if (_solution.Uid == Guid.Empty)
 			{
 				await UseStatusBarAsync($"The solution has not a unique identifier. You need to upgrade the solution file.");
 				return false;
 			}
 
-			if (reset)
-			{
-				SyncConfiguration.SetCustomSynchronizationSettings(solution.Uid, null);
-				SyncConfiguration.Save();
+			var customSettings = SyncConfiguration.GetCustomSynchronizationSettings(_solution.Uid);
 
-				await UseStatusBarAsync($"Removed custom configuration for the solution secrets.");
-				return true;
-			}
-
-			var customSettings = SyncConfiguration.GetCustomSynchronizationSettings(solution.Uid);
-
-			if (cboxRepositoryType.SelectedIndex == 0)
+			if (cboxRepositoryType.SelectedIndex == GITHUB)
 			{
 				if (
 					customSettings == null
-					&& SyncConfiguration.Default.Repository == SolutionSecrets.Core.Repository.RepositoryType.GitHub
+					&& SyncConfiguration.Default.Repository == RepositoryType.GitHub
 					)
 				{
 					return true;
 				}
 
-				SyncConfiguration.SetCustomSynchronizationSettings(solution.Uid, new SolutionSynchronizationSettings
+				SyncConfiguration.SetCustomSynchronizationSettings(_solution.Uid, new SolutionSynchronizationSettings
 				{
-					Repository = SolutionSecrets.Core.Repository.RepositoryType.GitHub,
+					Repository = RepositoryType.GitHub,
 					AzureKeyVaultName = null
 				});
 				SyncConfiguration.Save();
@@ -188,20 +176,20 @@ namespace SolutionSecrets2019
 				await UseStatusBarAsync($"Configured GitHub Gist as the repository for the solution secrets.");
 				return true;
 			}
-			else if (cboxRepositoryType.SelectedIndex == 1)
+			else if (cboxRepositoryType.SelectedIndex == AZURE_KV)
 			{
 				if (
 					customSettings == null
-					&& SyncConfiguration.Default.Repository == SolutionSecrets.Core.Repository.RepositoryType.AzureKV
+					&& SyncConfiguration.Default.Repository == RepositoryType.AzureKV
 					&& SyncConfiguration.Default.AzureKeyVaultName == txtAKVUrl.Text
 					)
 				{
 					return true;
 				}
 
-				SyncConfiguration.SetCustomSynchronizationSettings(solution.Uid, new SolutionSynchronizationSettings
+				SyncConfiguration.SetCustomSynchronizationSettings(_solution.Uid, new SolutionSynchronizationSettings
 				{
-					Repository = SolutionSecrets.Core.Repository.RepositoryType.AzureKV,
+					Repository = RepositoryType.AzureKV,
 					AzureKeyVaultName = txtAKVUrl.Text
 				});
 				SyncConfiguration.Save();
@@ -215,77 +203,54 @@ namespace SolutionSecrets2019
 
 		private void cboxRepositoryType_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
 		{
-			var solutionFilePath = SolutionSecrets2019Package._dte.Solution.FullName;
-			SolutionFile solution = new SolutionFile(solutionFilePath);
-
-			var customSettings = SyncConfiguration.GetCustomSynchronizationSettings(solution.Uid);
-
-			SolutionSecrets.Core.Repository.RepositoryType repositoryType = default;
 			switch (cboxRepositoryType.SelectedIndex)
 			{
-				case 0:
-					repositoryType = SolutionSecrets.Core.Repository.RepositoryType.GitHub;
+				case GITHUB:
 					gridAzureKeyVault.Visibility = Visibility.Collapsed;
 					gridGitHubGists.Visibility = Visibility.Visible;
 					break;
 
-				case 1:
-					repositoryType = SolutionSecrets.Core.Repository.RepositoryType.AzureKV;
+				case AZURE_KV:
 					gridGitHubGists.Visibility = Visibility.Collapsed;
 					gridAzureKeyVault.Visibility = Visibility.Visible;
-					txtAKVDefaultUrl.Text = SyncConfiguration.Default.AzureKeyVaultName;
-
-					if (customSettings != null)
-					{
-						txtAKVUrl.Text = customSettings.AzureKeyVaultName;
-						btnResetToDefaults.Visibility = Visibility.Visible;
-					}
-					else
-					{
-						txtAKVUrl.Text = txtAKVDefaultUrl.Text;
-						btnResetToDefaults.Visibility = Visibility.Collapsed;
-					}
 					break;
 			}
-
-			if (customSettings != null && customSettings.Repository != repositoryType)
-			{
-				btnResetToDefaults.Visibility = Visibility.Visible;
-			}
-		}
-
-
-		private void btnConfigureGitHubGists_Click(object sender, RoutedEventArgs e)
-		{
-			Close();
-			_commandService.OpenOption<Options.GitHubGists.GitHubGistsOptionPage>();
-		}
-
-		private void btnAKVChangeDefaultUrl_Click(object sender, RoutedEventArgs e)
-		{
-			Close();
-			_commandService.OpenOption<Options.AzureKeyVault.AzureKeyVaultOptionPage>();
 		}
 
 
 		private void btnAKVResetToDefault_Click(object sender, RoutedEventArgs e)
 		{
-			if (!String.IsNullOrWhiteSpace(txtAKVDefaultUrl.Text))
+			var defaultSettings = SyncConfiguration.Default;
+			if (!String.IsNullOrWhiteSpace(defaultSettings.AzureKeyVaultName))
 			{
-				txtAKVUrl.Text = txtAKVDefaultUrl.Text;
+				txtAKVUrl.Text = defaultSettings.AzureKeyVaultName;
 			}
 		}
 
 
-		private async void btnResetToDefaults_Click(object sender, RoutedEventArgs e)
+		private void btnOptions_Click(object sender, RoutedEventArgs e)
 		{
-			if (await ConfigureSolution(reset: true))
+			switch (cboxRepositoryType.SelectedIndex)
 			{
-				btnResetToDefaults.Visibility = Visibility.Collapsed;
-				txtAKVUrl.Text = txtAKVDefaultUrl.Text;
-				Initialize(_package, _commandService);
+				case GITHUB:
+					Close();
+					_commandService.OpenOption<Options.GitHubGists.GitHubGistsOptionPage>();
+					break;
+
+				case AZURE_KV:
+					Close();
+					_commandService.OpenOption<Options.AzureKeyVault.AzureKeyVaultOptionPage>();
+					break;
 			}
 		}
 
+
+		private void txtAKVUrl_TextChanged(object sender, System.Windows.Controls.TextChangedEventArgs e)
+		{
+			var defaultSettings = SyncConfiguration.Default;
+			btnAKVResetToDefault.Visibility = String.Equals(txtAKVUrl.Text, defaultSettings.AzureKeyVaultName, StringComparison.OrdinalIgnoreCase) ?
+				Visibility.Collapsed :
+				Visibility.Visible;
+		}
 	}
 }

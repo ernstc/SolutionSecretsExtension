@@ -22,74 +22,71 @@
             <RowDefinition />
         </Grid.RowDefinitions>
 
-        <Grid Margin="8" Grid.Row="0">
-            <GroupBox Header="Repository Type">
-                <StackPanel Margin="8">
-                    <ComboBox Name="cboxRepositoryType" SelectionChanged="cboxRepositoryType_SelectionChanged">
-                        <ComboBoxItem Content="GitHub Gists"></ComboBoxItem>
-                        <ComboBoxItem Content="Azure Key Vault"></ComboBoxItem>
-                    </ComboBox>
-                </StackPanel>
-            </GroupBox>
-        </Grid>
+        <StackPanel Margin="8" Grid.Row="0" Orientation="Vertical">
+            <Label>Repository Type</Label>
+            <ComboBox Name="cboxRepositoryType" Margin="4" SelectionChanged="cboxRepositoryType_SelectionChanged">
+                <ComboBoxItem Content="GitHub Gists"></ComboBoxItem>
+                <ComboBoxItem Content="Azure Key Vault"></ComboBoxItem>
+            </ComboBox>
+        </StackPanel>
 
         <Grid Name="gridGitHubGists" Margin="8" Grid.Row="1" Visibility="Collapsed">
-            <GroupBox Header="GitHub">
-                <StackPanel Margin="8">
-                    <TextBlock Grid.Row="0" Grid.ColumnSpan="2" Width="360" TextWrapping="Wrap" HorizontalAlignment="Left" Margin="0,0,0,16">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0" Margin="4" Orientation="Vertical">
+                    <TextBlock Width="292" TextWrapping="Wrap" HorizontalAlignment="Left" Margin="0,0,0,16">
                         GitHub Gists is used as the cloud repository for this solution secrets. Only secret gists will be created and the secrets will be stored encrypted.
                     </TextBlock>
-
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"></ColumnDefinition>
-                            <ColumnDefinition Width="*"></ColumnDefinition>
-                        </Grid.ColumnDefinitions>
-                        <StackPanel Grid.Column="0">
-                            <StackPanel Name="panelGitHubAuthorizationStatus" Orientation="Horizontal">
-                                <Label>Authorization status:</Label>
-                                <Label Name="labelGitHubAuthorizationStatus" FontWeight="Bold">Loading...</Label>
-                            </StackPanel>
-                            <StackPanel Orientation="Horizontal">
-                                <Label>Encryption key status:</Label>
-                                <Label Name="labelKeyStatus" FontWeight="Bold">Loading...</Label>
-                            </StackPanel>
-                        </StackPanel>
-                        <Button Grid.Column="1" VerticalAlignment="Top" HorizontalAlignment="Right" Name="btnConfigureGitHubGists" Visibility="Visible" Width="80" Click="btnConfigureGitHubGists_Click">Options...</Button>
-                    </Grid>
+                    <StackPanel Orientation="Horizontal" Margin="0 10 0 10">
+                        <TextBlock Width="130">Authorization status:</TextBlock>
+                        <TextBlock Name="labelGitHubAuthorizationStatus" FontWeight="Bold">Loading...</TextBlock>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0 0 0 30">
+                        <TextBlock Width="130">Encryption key status:</TextBlock>
+                        <TextBlock Name="labelKeyStatus" FontWeight="Bold">Loading...</TextBlock>
+                    </StackPanel>
                 </StackPanel>
-            </GroupBox>
-        </Grid>
-        
-        <Grid Name="gridAzureKeyVault" Margin="8" Grid.Row="1" Visibility="Collapsed">
-            <GroupBox Header="Azure Key Vault">
-                <StackPanel Margin="8">
-                    <TextBlock Grid.Row="0" Grid.ColumnSpan="2" Width="360" TextWrapping="Wrap" HorizontalAlignment="Left" Margin="0,0,0,16">
-                        Here you can specify the key vault to use for the solution. The default key vault is reported as a reference to the global options.
-                    </TextBlock>
-
-                    <TextBlock>Default Key Vault:</TextBlock>
-                    <Grid Margin="0,4,0,4">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"></ColumnDefinition>
-                            <ColumnDefinition Width="Auto"></ColumnDefinition>
-                        </Grid.ColumnDefinitions>
-                        <TextBox Grid.Column="0" Name="txtAKVDefaultUrl" Height="26" Text="" IsEnabled="False" Focusable="False" Padding="3" />
-                        <Button Grid.Column="1" Name="btnAKVChangeDefaultUrl" Width="70" HorizontalAlignment="Left" Click="btnAKVChangeDefaultUrl_Click">Change...</Button>
-                    </Grid>
-
-                    <TextBlock>Key Vault URL for the current solution:</TextBlock>
-                    <Grid Margin="0,4,0,4">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"></ColumnDefinition>
-                            <ColumnDefinition Width="Auto"></ColumnDefinition>
-                        </Grid.ColumnDefinitions>
-                        <TextBox Grid.Column="0" Name="txtAKVUrl" Height="26" Text="" Padding="3" />
-                        <Button Grid.Column="1" Name="btnAKVResetToDefault" Visibility="Collapsed" Width="70" HorizontalAlignment="Left" Click="btnAKVResetToDefault_Click">Reset</Button>
-                    </Grid>
                     
+                <StackPanel Grid.Column="1" Margin="4" Orientation="Vertical">
+                    <Image Height="60" Margin="10 0" Source="Resources/github-mark.png" />
                 </StackPanel>
-            </GroupBox>
+            </Grid>
+        </Grid>
+
+        <Grid Name="gridAzureKeyVault" Margin="8" Grid.Row="1" Visibility="Visible">
+            <StackPanel>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                
+                    <StackPanel Grid.Column="0" Margin="4" Orientation="Vertical">
+                        <TextBlock Width="292" TextWrapping="Wrap" HorizontalAlignment="Left" Margin="0,0,0,16">
+                            Here you can specify the key vault to use for the solution. The default key vault is reported as a reference to the global options.
+                        </TextBlock>
+                        <TextBlock Margin="0 10 0 6">
+                            Key Vault URL for the current solution:
+                        </TextBlock>
+                    </StackPanel>
+                
+                    <StackPanel Grid.Column="1" Margin="4" Orientation="Vertical">
+                        <Image Height="60" Margin="10 0" Source="Resources/keyvault.png" />
+                    </StackPanel>
+                </Grid>
+                <Grid Margin="4 0 4 30">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"></ColumnDefinition>
+                        <ColumnDefinition Width="Auto"></ColumnDefinition>
+                    </Grid.ColumnDefinitions>
+                    <TextBox Grid.Column="0" Name="txtAKVUrl" Height="26" Text="" Padding="3" TextChanged="txtAKVUrl_TextChanged" />
+                    <Button Grid.Column="1" Name="btnAKVResetToDefault" Visibility="Collapsed" Width="100" HorizontalAlignment="Left" Click="btnAKVResetToDefault_Click">Reset to default</Button>
+                </Grid>
+            </StackPanel>
         </Grid>
 
         <Grid Margin="0,4,12,12" Grid.Row="3">
@@ -98,12 +95,12 @@
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
 
-            <Button Name="btnResetToDefaults" Grid.Column="0" Width="120" HorizontalAlignment="Left" Margin="12,0,0,0" FontSize="12" Visibility="Collapsed" Click="btnResetToDefaults_Click">Reset to Defaults</Button>
+            <Button Name="btnOptions" Grid.Column="0" Width="80" HorizontalAlignment="Left" Margin="12,0,0,0" FontSize="12" Click="btnOptions_Click">Options...</Button>
 
             <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
                 <Button Name="btnOk" Width="80" IsDefault="True" Click="btnOk_Click" FontSize="12">OK</Button>
                 <Button Width="80" IsCancel="True" Margin="8,0,0,0" FontSize="12">Cancel</Button>
             </StackPanel>
-        </Grid>        
+        </Grid>
     </Grid>
 </platform:DialogWindow>

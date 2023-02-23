@@ -36,7 +36,7 @@ namespace SolutionSecrets.Core.Repository
             get => _repositoryName;
             set
             {
-                if (value == null)
+                if (String.IsNullOrWhiteSpace(value))
                 {
                     _repositoryName = null;
                 }
@@ -45,13 +45,13 @@ namespace SolutionSecrets.Core.Repository
                     string loweredValue = value.ToLower();
                     if (Uri.TryCreate(loweredValue, UriKind.Absolute, out Uri repositoryUri) && repositoryUri != null)
                     {
-                        int vaultIndex = loweredValue.IndexOf(".vault.", StringComparison.Ordinal);
+                        int vaultIndex = repositoryUri.Host.IndexOf(".vault.", StringComparison.Ordinal);
                         if (vaultIndex >= 0)
                         {
-                            string cloudDomain = loweredValue.Substring(vaultIndex);
+                            string cloudDomain = repositoryUri.Host.Substring(vaultIndex);
                             if (_clouds.ContainsKey(cloudDomain))
                             {
-                                _repositoryName = repositoryUri.Scheme.Equals("https", StringComparison.OrdinalIgnoreCase) ? loweredValue : null;
+                                _repositoryName = repositoryUri.Scheme.Equals("https", StringComparison.OrdinalIgnoreCase) ? $"https://{repositoryUri.Host}" : null;
                                 return;
                             }
                         }
@@ -95,22 +95,19 @@ namespace SolutionSecrets.Core.Repository
         {
             if (_repositoryName != null)
             {
-                var tokenCachePersistenceOptions = new TokenCachePersistenceOptions
-                {
-                    Name = "vs-secrets",
-                    UnsafeAllowUnencryptedStorage = false
-                };
+                //var tokenCachePersistenceOptions = new TokenCachePersistenceOptions
+                //{
+                //    Name = "vs-secrets",
+                //    UnsafeAllowUnencryptedStorage = false
+                //};
 
-                var interactiveBrowserCredentialOptions = new InteractiveBrowserCredentialOptions();
-                interactiveBrowserCredentialOptions.TokenCachePersistenceOptions = tokenCachePersistenceOptions;
-                interactiveBrowserCredentialOptions.AdditionallyAllowedTenants.Add("*");
+                //var interactiveBrowserCredentialOptions = new VisualStudioCredential();
+                //interactiveBrowserCredentialOptions.TokenCachePersistenceOptions = tokenCachePersistenceOptions;
+                //interactiveBrowserCredentialOptions.AdditionallyAllowedTenants.Add("*");
 
                 async Task AuthorizeClientAsync()
                 {
-                    var credential = new ChainedTokenCredential(
-                        new SharedTokenCacheCredential(new SharedTokenCacheCredentialOptions(tokenCachePersistenceOptions)),
-                        new InteractiveBrowserCredential(interactiveBrowserCredentialOptions)
-                    );
+                    var credential = new DefaultAzureCredential();
 
                     var accessToken = await credential.GetTokenAsync(new TokenRequestContext(/*scopes: new string[] { "https://vault.azure.net/.default" }*/));
 

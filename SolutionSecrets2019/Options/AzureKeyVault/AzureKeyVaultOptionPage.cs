@@ -1,11 +1,16 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Windows;
 using System.Windows.Forms;
 using Microsoft.VisualStudio.Shell;
 using SolutionSecrets.Core;
+using SolutionSecrets.Core.Repository;
+using CoreContext = SolutionSecrets.Core.Context;
+
 
 namespace SolutionSecrets2019.Options.AzureKeyVault
 {
@@ -35,12 +40,32 @@ namespace SolutionSecrets2019.Options.AzureKeyVault
 		}
 
 
+		protected override void OnDeactivate(CancelEventArgs e)
+		{
+			base.OnDeactivate(e);
+
+			var repository = (AzureKeyVaultRepository)CoreContext.Current.GetService<IRepository>(nameof(SolutionSecrets.Core.Repository.RepositoryType.AzureKV));
+			repository.RepositoryName = SyncConfiguration.Default.AzureKeyVaultName;
+			if (repository.RepositoryName == null)
+			{
+				System.Windows.MessageBox.Show("The key vault URL is not correct.", Constants.MESSAGE_BOX_TITLE, MessageBoxButton.OK);
+				e.Cancel = true;
+			}
+			else if (SyncConfiguration.Default.AzureKeyVaultName != repository.RepositoryName)
+			{
+				_page.SetDefaultKeyVaultName(repository.RepositoryName);
+				e.Cancel = true;
+			}
+		}
+
+
 		public override void SaveSettingsToStorage()
 		{
 			if (SyncConfiguration.Default.AzureKeyVaultName == String.Empty)
 			{
 				SyncConfiguration.Default.AzureKeyVaultName = null;
 			}
+
 			SyncConfiguration.Save();
 		}
 	}
