@@ -11,6 +11,7 @@ namespace SolutionSecrets.Core.Repository
     {
         bool EncryptOnClient { get; }
         string RepositoryType { get; }
+        string RepositoryTypeFullName { get; }
         string RepositoryName { get; set; }
         string GetFriendlyName();
         Task AuthorizeAsync();

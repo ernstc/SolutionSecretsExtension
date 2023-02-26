@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.ComponentModel.Design;
 using System.Globalization;
 using System.Windows;
-
+using Azure.Identity;
 using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Threading;
 
@@ -59,7 +59,6 @@ namespace SolutionSecrets2019.Commands
 
 		private async Task PushSecretsAsync()
 		{
-			await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
 			var solutionFullName = SolutionSecrets2019Package._dte.Solution.FullName;
 
 			SolutionFile solution = new SolutionFile(solutionFullName);
@@ -76,16 +75,46 @@ namespace SolutionSecrets2019.Commands
 			// Select the repository for the curront solution
 			IRepository repository = Context.Current.GetRepository(synchronizationSettings) ?? Context.Current.Repository;
 
-			if (!await Context.Current.Cipher.IsReady() || !await repository.IsReady())
+			await UseStatusBarAsync($"Pushing secrets to {repository.RepositoryTypeFullName} for the solution: {solution.Name} ...");
+
+			if (repository is AzureKeyVaultRepository azureKvRepository)
 			{
+				if (!await azureKvRepository.IsReady())
+				{
+					try
+					{
+						await azureKvRepository.AuthorizeAsync();
+					}
+					catch (AuthenticationFailedException ex)
+					{
+						System.Windows.MessageBox.Show(ex.Message, Vsix.Name, MessageBoxButton.OK, MessageBoxImage.Exclamation);
+						await UseStatusBarAsync(String.Empty);
+						return;
+					}
+					catch (Exception)
+					{
+						await UseStatusBarAsync("Error pushing secrets for the solution.");
+						return;
+					}
+				}
+
+				if (!await azureKvRepository.IsReady())
+				{
+					await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+					System.Windows.MessageBox.Show($"Access denied to Azure Key Vault {azureKvRepository.RepositoryName}.", Vsix.Name, MessageBoxButton.OK, MessageBoxImage.Exclamation);
+					commandService.OpenOption<Options.AzureKeyVault.AzureKeyVaultOptionPage>();
+					await UseStatusBarAsync("Error pushing secrets for the solution.");
+					return;
+				}
+			}
+			else if (!await Context.Current.Cipher.IsReady() || !await repository.IsReady())
+			{
+				await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
 				System.Windows.MessageBox.Show("You need to configure the solution secrets synchronization before using the Push command.", Vsix.Name, MessageBoxButton.OK, MessageBoxImage.Exclamation);
-
 				commandService.OpenOption<Options.GitHubGists.GitHubGistsOptionPage>();
-
+				await UseStatusBarAsync("Error pushing secrets for the solution.");
 				return;
 			}
-
-			await UseStatusBarAsync($"Pushing secrets for solution: {solution.Name} ...");
 
 			var headerFile = new HeaderFile
 			{
@@ -141,14 +170,14 @@ namespace SolutionSecrets2019.Commands
 			if (!isEmpty && !failed)
 			{
 				if (await repository.PushFilesAsync(solution, files))
-					await UseStatusBarAsync("Secrets pushed successfully.");
+					await UseStatusBarAsync($"Secrets pushed successfully to {repository.RepositoryTypeFullName}.");
 				else
 					failed = true;
 			}
 
 			if (failed)
 			{
-				await UseStatusBarAsync("Secrets pushing has failed!");
+				await UseStatusBarAsync("Secrets push has failed!");
 			}
 		}
 

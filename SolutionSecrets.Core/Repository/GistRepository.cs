@@ -34,6 +34,7 @@ namespace SolutionSecrets.Core.Repository
 
         public bool EncryptOnClient => true;
         public string RepositoryType => "GitHub";
+        public string RepositoryTypeFullName => "GitHub Gists";
         public string RepositoryName { get; set; }
 
         public string GetFriendlyName() => RepositoryName;

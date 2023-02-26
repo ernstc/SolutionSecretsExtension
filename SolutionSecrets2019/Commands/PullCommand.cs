@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.ComponentModel.Design;
 using System.Globalization;
 using System.Windows;
-
+using Azure.Identity;
 using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Threading;
 
@@ -60,7 +60,6 @@ namespace SolutionSecrets2019.Commands
 
 		private async Task PullSecretsAsync()
 		{
-			await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
 			var solutionFullName = SolutionSecrets2019Package._dte.Solution.FullName;
 
 			SolutionFile solution = new SolutionFile(solutionFullName);
@@ -77,16 +76,47 @@ namespace SolutionSecrets2019.Commands
 			// Select the repository for the curront solution
 			IRepository repository = Context.Current.GetRepository(synchronizationSettings) ?? Context.Current.Repository;
 
-			if (!await Context.Current.Cipher.IsReady() || !await repository.IsReady())
+			await UseStatusBarAsync($"Pulling secrets from {repository.RepositoryTypeFullName} for the solution: {solution.Name} ...");
+
+			if (repository is AzureKeyVaultRepository azureKvRepository)
 			{
-				System.Windows.MessageBox.Show("You need to configure the solution secrets synchronization before using the Pull command.", Vsix.Name, MessageBoxButton.OK, MessageBoxImage.Exclamation);
+				if (!await azureKvRepository.IsReady())
+				{
+					try
+					{
+						await azureKvRepository.AuthorizeAsync();
+					}
+					catch (AuthenticationFailedException ex)
+					{
+						System.Windows.MessageBox.Show($"Azure authentication failed. Check your credential in\nTools -> Options -> Azure Service Authentication.", Vsix.Name, MessageBoxButton.OK, MessageBoxImage.Exclamation);
+						await UseStatusBarAsync(String.Empty);
+						return;
+					}
+					catch (Exception)
+					{
+						await UseStatusBarAsync("Error pulling secrets for the solution.");
+						return;
+					}
+				}
 
+				if (!await azureKvRepository.IsReady())
+				{
+					await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+					System.Windows.MessageBox.Show($"Access denied to Azure Key Vault {azureKvRepository.RepositoryName}.", Vsix.Name, MessageBoxButton.OK, MessageBoxImage.Exclamation);
+					commandService.OpenOption<Options.AzureKeyVault.AzureKeyVaultOptionPage>();
+					await UseStatusBarAsync("Error pulling secrets for the solution.");
+					return;
+				}
+			}
+			else if (!await Context.Current.Cipher.IsReady() || !await repository.IsReady())
+			{
+				await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+				System.Windows.MessageBox.Show("You need to configure the solution secrets synchronization before using the Push command.", Vsix.Name, MessageBoxButton.OK, MessageBoxImage.Exclamation);
 				commandService.OpenOption<Options.GitHubGists.GitHubGistsOptionPage>();
-
+				await UseStatusBarAsync("Error pulling secrets for the solution.");
 				return;
 			}
 
-			await UseStatusBarAsync($"Pulling secrets for solution: {solution.Name} ...");
 
 			var repositoryFiles = await repository.PullFilesAsync(solution);
 			if (repositoryFiles.Count == 0)
@@ -194,7 +224,7 @@ namespace SolutionSecrets2019.Commands
 			}
 
 			if (!failed)
-				await UseStatusBarAsync("Secrets pulled successfully.");
+				await UseStatusBarAsync($"Secrets pulled successfully from {repository.RepositoryTypeFullName}.");
 			else
 				await UseStatusBarAsync("Secrets pull has failed!");
 		}

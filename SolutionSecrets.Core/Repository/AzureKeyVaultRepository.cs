@@ -28,6 +28,7 @@ namespace SolutionSecrets.Core.Repository
 
         public bool EncryptOnClient => false;
         public string RepositoryType => "AzureKV";
+        public string RepositoryTypeFullName => "Azure Key Vault";
 
         private string _repositoryName;
 
@@ -95,33 +96,15 @@ namespace SolutionSecrets.Core.Repository
         {
             if (_repositoryName != null)
             {
-                //var tokenCachePersistenceOptions = new TokenCachePersistenceOptions
-                //{
-                //    Name = "vs-secrets",
-                //    UnsafeAllowUnencryptedStorage = false
-                //};
-
-                //var interactiveBrowserCredentialOptions = new VisualStudioCredential();
-                //interactiveBrowserCredentialOptions.TokenCachePersistenceOptions = tokenCachePersistenceOptions;
-                //interactiveBrowserCredentialOptions.AdditionallyAllowedTenants.Add("*");
-
-                async Task AuthorizeClientAsync()
-                {
-                    var credential = new DefaultAzureCredential();
-
-                    var accessToken = await credential.GetTokenAsync(new TokenRequestContext(/*scopes: new string[] { "https://vault.azure.net/.default" }*/));
-
-                    _client = new SecretClient(new Uri(_repositoryName), credential);
-                }
-
-                await AuthorizeClientAsync();
+                _client = new SecretClient(new Uri(_repositoryName));
                 try
                 {
                     var _ = await _client.GetSecretAsync("vs-secrets-fake");
                 }
                 catch (Azure.Identity.AuthenticationFailedException)
                 {
-                    await AuthorizeClientAsync();
+                    _client = null;
+                    throw;
                 }
                 catch
                 { }
@@ -162,7 +145,7 @@ namespace SolutionSecrets.Core.Repository
                 $"{SECRET_PREFIX}{solution.Name}--";
 
             List<string> solutionSecretsName = new List<string>();
-            foreach (var secretProperties in _client.GetPropertiesOfSecrets())
+            foreach (var secretProperties in await _client.GetPropertiesOfSecrets())
             {
                 if (secretProperties.Enabled == true && secretProperties.Name.StartsWith(prefix, StringComparison.Ordinal))
                 {
