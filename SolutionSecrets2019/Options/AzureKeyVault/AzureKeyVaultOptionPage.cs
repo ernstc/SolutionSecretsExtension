@@ -44,20 +44,25 @@ namespace SolutionSecrets2019.Options.AzureKeyVault
 		{
 			base.OnDeactivate(e);
 
-			var repository = (AzureKeyVaultRepository)CoreContext.Current.GetService<IRepository>(nameof(SolutionSecrets.Core.Repository.RepositoryType.AzureKV));
-			repository.RepositoryName = SyncConfiguration.Default.AzureKeyVaultName;
-			if (repository.RepositoryName == null)
+			if (!String.IsNullOrWhiteSpace(SyncConfiguration.Default.AzureKeyVaultName))
 			{
-				System.Windows.MessageBox.Show("The key vault URL is not correct.", Constants.MESSAGE_BOX_TITLE, MessageBoxButton.OK);
-				e.Cancel = true;
-			}
-			else if (SyncConfiguration.Default.AzureKeyVaultName != repository.RepositoryName)
-			{
-				_page.SetDefaultKeyVaultName(repository.RepositoryName);
-				e.Cancel = true;
+				var repository = (AzureKeyVaultRepository)CoreContext.Current.GetService<IRepository>(nameof(SolutionSecrets.Core.Repository.RepositoryType.AzureKV));
+				repository.RepositoryName = SyncConfiguration.Default.AzureKeyVaultName;
+				if (repository.RepositoryName == null)
+				{
+					System.Windows.MessageBox.Show("The key vault URL is not correct.", Constants.MESSAGE_BOX_TITLE, MessageBoxButton.OK);
+					e.Cancel = true;
+				}
+				else if (SyncConfiguration.Default.AzureKeyVaultName != repository.RepositoryName)
+				{
+					_page.SetDefaultKeyVaultName(repository.RepositoryName);
+					e.Cancel = true;
+				}
 			}
 		}
 
+
+		private bool _saved = false;
 
 		public override void SaveSettingsToStorage()
 		{
@@ -67,6 +72,19 @@ namespace SolutionSecrets2019.Options.AzureKeyVault
 			}
 
 			SyncConfiguration.Save();
+			_saved = true;
 		}
+
+
+		protected override void OnClosed(EventArgs e)
+		{
+			base.OnClosed(e);
+			if (!_saved)
+			{
+				SyncConfiguration.Refresh();
+			}
+			_saved = false;
+		}
+
 	}
 }

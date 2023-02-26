@@ -66,9 +66,12 @@ namespace SolutionSecrets2019
 			CheckCipherStatusAsync();
 
 			txtAKVUrl.Text = customSettings.AzureKeyVaultName ?? defaultSettings.AzureKeyVaultName;
-			btnAKVResetToDefault.Visibility = String.Equals(txtAKVUrl.Text, defaultSettings.AzureKeyVaultName, StringComparison.OrdinalIgnoreCase) ?
-				Visibility.Collapsed :
-				Visibility.Visible;
+			if (!String.IsNullOrWhiteSpace(defaultSettings.AzureKeyVaultName))
+			{
+				btnAKVResetToDefault.Visibility = String.Equals(txtAKVUrl.Text, defaultSettings.AzureKeyVaultName, StringComparison.OrdinalIgnoreCase) ?
+					Visibility.Collapsed :
+					Visibility.Visible;
+			}
 		}
 
 
@@ -248,9 +251,12 @@ namespace SolutionSecrets2019
 		private void txtAKVUrl_TextChanged(object sender, System.Windows.Controls.TextChangedEventArgs e)
 		{
 			var defaultSettings = SyncConfiguration.Default;
-			btnAKVResetToDefault.Visibility = String.Equals(txtAKVUrl.Text, defaultSettings.AzureKeyVaultName, StringComparison.OrdinalIgnoreCase) ?
-				Visibility.Collapsed :
-				Visibility.Visible;
+			if (!String.IsNullOrWhiteSpace(defaultSettings.AzureKeyVaultName))
+			{
+				btnAKVResetToDefault.Visibility = String.Equals(txtAKVUrl.Text, defaultSettings.AzureKeyVaultName, StringComparison.OrdinalIgnoreCase) ?
+					Visibility.Collapsed :
+					Visibility.Visible;
+			}
 		}
 	}
 }
