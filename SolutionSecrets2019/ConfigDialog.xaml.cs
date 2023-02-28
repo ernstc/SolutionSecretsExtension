@@ -13,7 +13,7 @@ using SolutionSecrets.Core;
 using Task = System.Threading.Tasks.Task;
 using CoreContext = SolutionSecrets.Core.Context;
 using SolutionSecrets.Core.Repository;
-
+using SolutionSecrets.Core.Encryption;
 
 namespace SolutionSecrets2019
 {
@@ -39,7 +39,7 @@ namespace SolutionSecrets2019
 		}
 
 
-		public virtual void Initialize(AsyncPackage package, OleMenuCommandService commandService)
+		public void Initialize(AsyncPackage package, OleMenuCommandService commandService)
 		{
 			_package = package;
 			_commandService = commandService ?? throw new ArgumentNullException(nameof(commandService));
@@ -62,7 +62,7 @@ namespace SolutionSecrets2019
 					break;
 			}
 
-			CheckRepositoryStatusAsync();
+			CheckGitHubRepositoryStatusAsync();
 			CheckCipherStatusAsync();
 
 			txtAKVUrl.Text = customSettings.AzureKeyVaultName ?? defaultSettings.AzureKeyVaultName;
@@ -75,11 +75,12 @@ namespace SolutionSecrets2019
 		}
 
 
-		private async void CheckRepositoryStatusAsync()
+		private async void CheckGitHubRepositoryStatusAsync()
 		{
 			string status;
-			await Services.Repository.RefreshStatus();
-			if (await Services.Repository.IsReady())
+			var repository = CoreContext.Current.GetService<IRepository>(nameof(RepositoryType.GitHub));
+			await repository.RefreshStatus();
+			if (await repository.IsReady())
 			{
 				status = "Authorized";
 			}
@@ -95,8 +96,9 @@ namespace SolutionSecrets2019
 		private async void CheckCipherStatusAsync()
 		{
 			string status;
-			await Services.Cipher.RefreshStatus();
-			if (await Services.Cipher.IsReady())
+			var cipher = CoreContext.Current.GetService<ICipher>();
+			await cipher.RefreshStatus();
+			if (await cipher.IsReady())
 			{
 				status = "Created";
 			}

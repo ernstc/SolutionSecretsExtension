@@ -11,7 +11,10 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Forms;
 using SolutionSecrets.Core;
+using SolutionSecrets.Core.Encryption;
 using SolutionSecrets.Core.Repository;
+using CoreContext = SolutionSecrets.Core.Context;
+
 
 namespace SolutionSecrets2019.Options.GitHubGists
 {
@@ -47,7 +50,8 @@ namespace SolutionSecrets2019.Options.GitHubGists
 		{
 			btnAuthorize.Enabled = false;
 
-			string deviceCode = await Services.Repository.StartDeviceFlowAuthorizationAsync();
+			var repository = CoreContext.Current.GetService<IRepository>(nameof(RepositoryType.GitHub));
+			string deviceCode = await repository.StartDeviceFlowAuthorizationAsync();
 			if (deviceCode == null)
 			{
 				return;
@@ -77,9 +81,10 @@ namespace SolutionSecrets2019.Options.GitHubGists
 		{
 			btnContinueAuthorization.Enabled = false;
 
-			await Services.Repository.CompleteDeviceFlowAuthorizationAsync();
-			await Services.Repository.RefreshStatus();
-			if (await Services.Repository.IsReady())
+			var repository = CoreContext.Current.GetService<IRepository>(nameof(RepositoryType.GitHub));
+			await repository.CompleteDeviceFlowAuthorizationAsync();
+			await repository.RefreshStatus();
+			if (await repository.IsReady())
 			{
 				SetAuthorized();
 			}
@@ -88,14 +93,16 @@ namespace SolutionSecrets2019.Options.GitHubGists
 
 		private void btnUndoCompleteAuthorization_Click(object sender, EventArgs e)
 		{
-			Services.Repository.AbortAuthorization();
+			var repository = CoreContext.Current.GetService<IRepository>(nameof(RepositoryType.GitHub));
+			repository.AbortAuthorization();
 			SetNotAuthorized();
 		}
 
 
 		private async Task CheckRepositoryStatusAsync()
 		{
-			if (await Services.Repository.IsReady())
+			var repository = CoreContext.Current.GetService<IRepository>(nameof(RepositoryType.GitHub));
+			if (await repository.IsReady())
 			{
 				SetAuthorized();
 			}
@@ -211,8 +218,9 @@ namespace SolutionSecrets2019.Options.GitHubGists
 
 		private async Task CheckCipherStatusAsync()
 		{
-			await Services.Cipher.RefreshStatus();
-			if (await Services.Cipher.IsReady())
+			var cipher = CoreContext.Current.GetService<ICipher>();
+			await cipher.RefreshStatus();
+			if (await cipher.IsReady())
 			{
 				lblEncryptionKeyStatus.Text = " Created ";
 				pnlCreateEncryptionKey.Visible = false;
@@ -232,7 +240,8 @@ namespace SolutionSecrets2019.Options.GitHubGists
 		{
 			if (_generatingNewEncryptionKey)
 			{
-				if (await Services.Cipher.IsReady())
+				var cipher = CoreContext.Current.GetService<ICipher>();
+				if (await cipher.IsReady())
 				{
 					MessageBoxResult result = System.Windows.MessageBox.Show("You are updating the encryption key.\nSaved secrets will no longer be recoverable.\n\nAre you sure?", Constants.MESSAGE_BOX_TITLE, MessageBoxButton.YesNo, MessageBoxImage.Exclamation);
 					if (result != MessageBoxResult.Yes)
@@ -278,7 +287,8 @@ namespace SolutionSecrets2019.Options.GitHubGists
 				return false;
 			}
 
-			Services.Cipher.Init(txtPassphrase.Text);
+			var cipher = CoreContext.Current.GetService<ICipher>();
+			cipher.Init(txtPassphrase.Text);
 			return true;
 		}
 
@@ -301,7 +311,8 @@ namespace SolutionSecrets2019.Options.GitHubGists
 
 			using (var file = File.OpenRead(filePath))
 			{
-				Services.Cipher.Init(file);
+				var cipher = CoreContext.Current.GetService<ICipher>();
+				cipher.Init(file);
 			}
 			return true;
 		}

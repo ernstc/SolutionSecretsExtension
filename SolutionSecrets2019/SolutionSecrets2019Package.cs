@@ -47,28 +47,21 @@ namespace SolutionSecrets2019
 			_dte = await GetServiceAsync(typeof(DTE)) as DTE2;
 			Assumes.Present(_dte);
 
-			try
-			{
-				var cipher = new Cipher();
-				await cipher.RefreshStatus();
-				CoreContext.Current.AddService<ICipher>(cipher);
+			var cipher = new Cipher();
+			await cipher.RefreshStatus();
+			CoreContext.Current.AddService<ICipher>(cipher);
 
-				var defaultRepository = new GistRepository();
-				var azureKeyVaultRepository = new AzureKeyVaultRepository();
+			var defaultRepository = new GistRepository();
+			var azureKeyVaultRepository = new AzureKeyVaultRepository();
 
-				CoreContext.Current.AddService<IRepository>(defaultRepository);
-				CoreContext.Current.AddService<IRepository>(defaultRepository, nameof(SolutionSecrets.Core.Repository.RepositoryType.GitHub));
-				CoreContext.Current.AddService<IRepository>(azureKeyVaultRepository, nameof(SolutionSecrets.Core.Repository.RepositoryType.AzureKV));
+			CoreContext.Current.AddService<IRepository>(defaultRepository);
+			CoreContext.Current.AddService<IRepository>(defaultRepository, nameof(SolutionSecrets.Core.Repository.RepositoryType.GitHub));
+			CoreContext.Current.AddService<IRepository>(azureKeyVaultRepository, nameof(SolutionSecrets.Core.Repository.RepositoryType.AzureKV));
 
-				await ConfigureCommand.InitializeAsync(this);
-				await PullCommand.InitializeAsync(this);
-				await PushCommand.InitializeAsync(this);
-				await ClearCommand.InitializeAsync(this);
-			}
-			catch (Exception)
-			{
-				throw;
-			}
+			await ConfigureCommand.InitializeAsync(this);
+			await PullCommand.InitializeAsync(this);
+			await PushCommand.InitializeAsync(this);
+			await ClearCommand.InitializeAsync(this);
 		}
 
 	}

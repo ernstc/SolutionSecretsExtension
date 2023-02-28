@@ -5,6 +5,10 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using Microsoft.VisualStudio.Shell;
+using SolutionSecrets.Core.Encryption;
+using SolutionSecrets.Core.Repository;
+using CoreContext = SolutionSecrets.Core.Context;
+
 
 namespace SolutionSecrets2019.Options.GitHubGists
 {
@@ -30,8 +34,11 @@ namespace SolutionSecrets2019.Options.GitHubGists
 
 		public override async void LoadSettingsFromStorage()
 		{
-			await Services.Cipher.RefreshStatus();
-			await Services.Repository.RefreshStatus();
+			var cipher = CoreContext.Current.GetService<ICipher>();
+			var repository = CoreContext.Current.GetService<IRepository>(nameof(RepositoryType.GitHub));
+
+			await cipher.RefreshStatus();
+			await repository.RefreshStatus();
 			await _page.InitializeAsync();
 		}
 

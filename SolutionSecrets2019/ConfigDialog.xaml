@@ -57,7 +57,7 @@
             </Grid>
         </Grid>
 
-        <Grid Name="gridAzureKeyVault" Margin="8" Grid.Row="1" Visibility="Visible">
+        <Grid Name="gridAzureKeyVault" Margin="8" Grid.Row="1" Visibility="Collapsed">
             <StackPanel>
                 <Grid>
                     <Grid.ColumnDefinitions>
