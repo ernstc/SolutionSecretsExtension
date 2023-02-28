@@ -5,6 +5,10 @@ using Microsoft.VisualStudio.PlatformUI;
 using Microsoft.Win32;
 using SolutionSecrets.Core;
 using SolutionSecrets.Core.Repository;
+using EnvDTE;
+using System.Threading.Tasks;
+using SolutionSecrets.Core.Encryption;
+
 
 namespace SolutionSecrets2022
 {
@@ -14,9 +18,13 @@ namespace SolutionSecrets2022
 	public partial class ConfigDialog : DialogWindow
 	{
 
-		private bool _isLoaded;
-		private FileInfo _selectedFile;
-		private bool _generatingNewEncryptionKey;
+		const int GITHUB = 0;
+		const int AZURE_KV = 1;
+
+
+		private AsyncPackage _package;
+		private OleMenuCommandService _commandService;
+		private SolutionFile _solution;
 
 
 		public ConfigDialog()
@@ -26,252 +34,218 @@ namespace SolutionSecrets2022
 		}
 
 
-		private async void ConfigDialog_Loaded(object sender, RoutedEventArgs e)
+		public void Initialize(AsyncPackage package, OleMenuCommandService commandService)
 		{
-			_isLoaded = true;
-			_generatingNewEncryptionKey = false;
+			_package = package;
+			_commandService = commandService ?? throw new ArgumentNullException(nameof(commandService));
 
-			Title = Vsix.Name;
+			var solutionFilePath = SolutionSecrets2022Package._dte.Solution.FullName;
+			_solution = new SolutionFile(solutionFilePath);
 
-			await CheckCipherStatusAsync();
-			await CheckRepositoryStatusAsync();
+			var defaultSettings = SyncConfiguration.Default;
+			var customSettings = SyncConfiguration.GetCustomSynchronizationSettings(_solution.Uid) ?? defaultSettings;
+			switch (customSettings.Repository)
+			{
+				case RepositoryType.GitHub:
+					cboxRepositoryType.SelectedIndex = GITHUB;
+					gridGitHubGists.Visibility = Visibility.Visible;
+					break;
+
+				case RepositoryType.AzureKV:
+					cboxRepositoryType.SelectedIndex = AZURE_KV;
+					gridAzureKeyVault.Visibility = Visibility.Visible;
+					break;
+			}
+
+			CheckGitHubRepositoryStatusAsync();
+			CheckCipherStatusAsync();
+
+			txtAKVUrl.Text = customSettings.AzureKeyVaultName ?? defaultSettings.AzureKeyVaultName;
+			if (!String.IsNullOrWhiteSpace(defaultSettings.AzureKeyVaultName))
+			{
+				btnAKVResetToDefault.Visibility = String.Equals(txtAKVUrl.Text, defaultSettings.AzureKeyVaultName, StringComparison.OrdinalIgnoreCase) ?
+					Visibility.Collapsed :
+					Visibility.Visible;
+			}
 		}
 
 
-		private async Task CheckRepositoryStatusAsync()
+		private async void CheckGitHubRepositoryStatusAsync()
 		{
-			var repository = Context.Current.GetService<IRepository>(nameof(RepositoryTypesEnum.GitHub));
+			string status;
+			var repository = CoreContext.Current.GetService<IRepository>(nameof(RepositoryType.GitHub));
 			await repository.RefreshStatus();
 			if (await repository.IsReady())
 			{
-				panelGitHubAuthorizationStatus.Visibility = Visibility.Visible;
+				status = "Authorized";
 			}
 			else
 			{
-				btnAuthorizeGitHub.Visibility = Visibility.Visible;
+				status = "Not authorized";
 			}
+			await _package.JoinableTaskFactory.SwitchToMainThreadAsync();
+			labelGitHubAuthorizationStatus.Text = status;
 		}
 
 
-		private async Task CheckCipherStatusAsync()
+		private async void CheckCipherStatusAsync()
 		{
-			var cipher = Context.Current.Cipher;
+			string status;
+			var cipher = CoreContext.Current.GetService<ICipher>();
 			await cipher.RefreshStatus();
 			if (await cipher.IsReady())
 			{
-				panelCreateKey.Visibility = Visibility.Collapsed;
-				panelKeyStatus.Visibility = Visibility.Visible;
-				_generatingNewEncryptionKey = false;
+				status = "Created";
 			}
 			else
 			{
-				panelKeyStatus.Visibility = Visibility.Collapsed;
-				panelCreateKey.Visibility = Visibility.Visible;
-				txtPassPhrase.Focus();
-				_generatingNewEncryptionKey = true;
+				status = "Not found";
 			}
+			await _package.JoinableTaskFactory.SwitchToMainThreadAsync();
+			labelKeyStatus.Text = status;
 		}
 
 
-		private void btnCreateNewKey_Click(object sender, RoutedEventArgs e)
+		private async void ConfigDialog_Loaded(object sender, RoutedEventArgs e)
 		{
-			panelKeyStatus.Visibility = Visibility.Collapsed;
-			panelCreateKey.Visibility = Visibility.Visible;
-			txtPassPhrase.Focus();
-			_generatingNewEncryptionKey = true;
-		}
-
-
-		private void cbPassPhrase_Checked(object sender, RoutedEventArgs e)
-		{
-			if (_isLoaded)
-			{
-				txtKeyFilePath.IsEnabled = false;
-				txtKeyFilePath.Text = null;
-				txtKeyFilePath.Tag = null;
-				btnBrowseFile.IsEnabled = false;
-
-				txtPassPhrase.IsEnabled = true;
-				txtConfirmPassPhrase.IsEnabled = true;
-			}
-		}
-
-
-		private void cbKeyFilePath_Checked(object sender, RoutedEventArgs e)
-		{
-			if (_isLoaded)
-			{
-				txtPassPhrase.Password = null;
-				txtPassPhrase.IsEnabled = false;
-				txtConfirmPassPhrase.Password = null;
-				txtConfirmPassPhrase.IsEnabled = false;
-
-				txtKeyFilePath.IsEnabled = true;
-				btnBrowseFile.IsEnabled = true;
-			}
-		}
-
-
-		private void btnBrowseFile_Click(object sender, RoutedEventArgs e)
-		{
-			OpenFileDialog openFileDialog = new OpenFileDialog();
-			if (openFileDialog.ShowDialog() == true)
-			{
-				_selectedFile = new FileInfo(openFileDialog.FileName);
-				txtKeyFilePath.Text = _selectedFile.Name;
-				txtKeyFilePath.Tag = openFileDialog.FileName;
-			}
-		}
-
-
-		private async void btnAuthorizeGitHub_Click(object sender, RoutedEventArgs e)
-		{
-			btnAuthorizeGitHub.IsEnabled = false;
-
-			var repository = Context.Current.GetService<IRepository>(nameof(RepositoryTypesEnum.GitHub));
-			string deviceCode = await repository.StartDeviceFlowAuthorizationAsync();
-			if (deviceCode == null)
-			{
-				return;
-			}
-
-			txtDeviceCode.Text = deviceCode;
-			btnAuthorizeGitHub.Visibility = Visibility.Collapsed;
-			btnAuthorizeGitHub.IsEnabled = true;
-			panelAuthorizingGitHub.Visibility = Visibility.Visible;
-		}
-
-
-		private async void btnContinueAuthorizingGitHub_Click(object sender, RoutedEventArgs e)
-		{
-			btnContinueAuthorizingGitHub.IsEnabled = false;
-
-			var repository = Context.Current.GetService<IRepository>(nameof(RepositoryTypesEnum.GitHub));
-			await repository.CompleteDeviceFlowAuthorizationAsync();
-			if (await repository.IsReady())
-			{
-				panelAuthorizingGitHub.Visibility = Visibility.Collapsed;
-				panelGitHubAuthorizationStatus.Visibility = Visibility.Visible;
-			}
-			else
-			{
-				panelAuthorizingGitHub.Visibility = Visibility.Collapsed;
-				btnAuthorizeGitHub.Visibility = Visibility.Visible;
-			}
-
-			btnContinueAuthorizingGitHub.IsEnabled = true;
+			Title = Vsix.Name;
 		}
 
 
 		private async void btnOk_Click(object sender, RoutedEventArgs e)
 		{
-			if (_generatingNewEncryptionKey)
+			if (cboxRepositoryType.SelectedIndex == AZURE_KV)
 			{
-				if (await Context.Current.Cipher.IsReady())
+				var repository = (AzureKeyVaultRepository)CoreContext.Current.GetService<IRepository>(nameof(RepositoryType.AzureKV));
+				repository.RepositoryName = txtAKVUrl.Text;
+				if (repository.RepositoryName == null)
 				{
-					MessageBoxResult result = System.Windows.MessageBox.Show("You are updating the encryption key.\nSaved secrets will no longer be recoverable.\n\nAre you sure?", Constants.MESSAGE_BOX_TITLE, MessageBoxButton.YesNo, MessageBoxImage.Exclamation);
-					if (result != MessageBoxResult.Yes)
-					{
-						Close();
-						return;
-					}
-				}
-
-				Func<bool> action = txtPassPhrase.IsEnabled ? 
-					new Func<bool>(GenerateKeyFromPassphrase) : 
-					new Func<bool>(GenerateKeyFromFile);
-
-				if (action())
-				{
-					await CheckCipherStatusAsync();
-					txtPassPhrase.Password = null;
-					txtConfirmPassPhrase.Password = null;
-					txtKeyFilePath.Text = null;
-					txtKeyFilePath.Tag = null;
-					Close();
-				}
-				else
-				{
+					System.Windows.MessageBox.Show("The key vault URL is not correct.", Constants.MESSAGE_BOX_TITLE, MessageBoxButton.OK);
 					return;
 				}
+				else if (txtAKVUrl.Text != repository.RepositoryName)
+				{
+					await _package.JoinableTaskFactory.SwitchToMainThreadAsync();
+					txtAKVUrl.Text = repository.RepositoryName;
+				}
 			}
-			Close();
+
+			if (await ConfigureSolution())
+			{
+				Close();
+			}
 		}
 
 
-		#region Cipher routines
-
-		private bool GenerateKeyFromPassphrase()
+		private async Task<bool> ConfigureSolution()
 		{
-			if (txtPassPhrase.Password != txtConfirmPassPhrase.Password)
+			if (_solution.Uid == Guid.Empty)
 			{
-				System.Windows.MessageBox.Show("The passphrase has not been confirmed correctly.", Constants.MESSAGE_BOX_TITLE, MessageBoxButton.OK);
+				await VS.StatusBar.ShowMessageAsync($"The solution has not a unique identifier. You need to upgrade the solution file.");
 				return false;
 			}
 
-			var validationError = ValidatePassphrase(txtPassPhrase.Password);
-			if (validationError != null)
-			{
-				System.Windows.MessageBox.Show(validationError, Constants.MESSAGE_BOX_TITLE, MessageBoxButton.OK);
-				return false;
-			}
+			var customSettings = SyncConfiguration.GetCustomSynchronizationSettings(_solution.Uid);
 
-			Context.Current.Cipher.Init(txtPassPhrase.Password);
-			return true;
+			if (cboxRepositoryType.SelectedIndex == GITHUB)
+			{
+				if (
+					customSettings == null
+					&& SyncConfiguration.Default.Repository == RepositoryType.GitHub
+				)
+				{
+					return true;
+				}
+
+				SyncConfiguration.SetCustomSynchronizationSettings(_solution.Uid, new SolutionSynchronizationSettings
+				{
+					Repository = RepositoryType.GitHub,
+					AzureKeyVaultName = null
+				});
+				SyncConfiguration.Save();
+
+				await VS.StatusBar.ShowMessageAsync($"Configured GitHub Gist as the repository for the solution secrets.");
+				return true;
+			}
+			else if (cboxRepositoryType.SelectedIndex == AZURE_KV)
+			{
+				if (
+					customSettings == null
+					&& SyncConfiguration.Default.Repository == RepositoryType.AzureKV
+					&& SyncConfiguration.Default.AzureKeyVaultName == txtAKVUrl.Text
+				)
+				{
+					return true;
+				}
+
+				SyncConfiguration.SetCustomSynchronizationSettings(_solution.Uid, new SolutionSynchronizationSettings
+				{
+					Repository = RepositoryType.AzureKV,
+					AzureKeyVaultName = txtAKVUrl.Text
+				});
+				SyncConfiguration.Save();
+
+				await VS.StatusBar.ShowMessageAsync($"Configured Azure Key Vault as the repository for the solution secrets.");
+				return true;
+			}
+			return false;
 		}
 
 
-		private bool GenerateKeyFromFile()
+		private void cboxRepositoryType_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
 		{
-			string filePath = txtKeyFilePath.Tag as string;
-
-			if (String.IsNullOrEmpty(filePath))
+			switch (cboxRepositoryType.SelectedIndex)
 			{
-				System.Windows.MessageBox.Show("Select a key file.", Constants.MESSAGE_BOX_TITLE, MessageBoxButton.OK);
-				return false;
-			}
+				case GITHUB:
+					gridAzureKeyVault.Visibility = Visibility.Collapsed;
+					gridGitHubGists.Visibility = Visibility.Visible;
+					break;
 
-			if (!File.Exists(filePath))
-			{
-				System.Windows.MessageBox.Show("The selected file does not exist.", Constants.MESSAGE_BOX_TITLE, MessageBoxButton.OK);
-				return false;
+				case AZURE_KV:
+					gridGitHubGists.Visibility = Visibility.Collapsed;
+					gridAzureKeyVault.Visibility = Visibility.Visible;
+					break;
 			}
-
-			using (var file = File.OpenRead(filePath))
-			{
-				Context.Current.Cipher.Init(file);
-			}
-			return true;
 		}
 
 
-		public string ValidatePassphrase(string passphrase)
+		private void btnAKVResetToDefault_Click(object sender, RoutedEventArgs e)
 		{
-			if (String.IsNullOrWhiteSpace(passphrase))
+			var defaultSettings = SyncConfiguration.Default;
+			if (!String.IsNullOrWhiteSpace(defaultSettings.AzureKeyVaultName))
 			{
-				return "The passphrase is empty.";
+				txtAKVUrl.Text = defaultSettings.AzureKeyVaultName;
 			}
-
-			var hasNumber = new Regex(@"[0-9]+");
-			var hasUpperChar = new Regex(@"[A-Z]+");
-			var hasMiniMaxChars = new Regex(@".{8,}");
-			var hasLowerChar = new Regex(@"[a-z]+");
-			var hasSymbols = new Regex(@"[!@#$%^&*()_+=\[{\]};:<>|./?,-]");
-
-			bool isValid =
-				hasLowerChar.IsMatch(passphrase)
-				&& hasUpperChar.IsMatch(passphrase)
-				&& hasMiniMaxChars.IsMatch(passphrase)
-				&& hasNumber.IsMatch(passphrase)
-				&& hasSymbols.IsMatch(passphrase);
-
-			if (!isValid)
-				return "The passphrase is weak. It should contains at least 8 characters in upper and lower case, at least one digit and at least one symbol between !@#$%^&*()_+=[{]};:<>|./?,-";
-
-			return null;
 		}
 
-		#endregion
+
+		private void btnOptions_Click(object sender, RoutedEventArgs e)
+		{
+			switch (cboxRepositoryType.SelectedIndex)
+			{
+				case GITHUB:
+					Close();
+					_commandService.OpenOption<Options.GitHubGists.GitHubGistsOptionPage>();
+					break;
+
+				case AZURE_KV:
+					Close();
+					_commandService.OpenOption<Options.AzureKeyVault.AzureKeyVaultOptionPage>();
+					break;
+			}
+		}
+
+
+		private void txtAKVUrl_TextChanged(object sender, System.Windows.Controls.TextChangedEventArgs e)
+		{
+			var defaultSettings = SyncConfiguration.Default;
+			if (!String.IsNullOrWhiteSpace(defaultSettings.AzureKeyVaultName))
+			{
+				btnAKVResetToDefault.Visibility = String.Equals(txtAKVUrl.Text, defaultSettings.AzureKeyVaultName, StringComparison.OrdinalIgnoreCase) ?
+					Visibility.Collapsed :
+					Visibility.Visible;
+			}
+		}
 
 	}
 }
