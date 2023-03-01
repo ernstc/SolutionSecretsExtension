@@ -51,7 +51,7 @@ namespace SolutionSecrets2022.Options.General
             // 
             label2.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
-            label2.Location = new System.Drawing.Point(3, 87);
+            label2.Location = new System.Drawing.Point(3, 104);
             label2.Name = "label2";
             label2.Size = new System.Drawing.Size(748, 62);
             label2.TabIndex = 1;
@@ -65,7 +65,7 @@ namespace SolutionSecrets2022.Options.General
             this.cboxRepositoryType.Items.AddRange(new object[] {
             "GitHub Gists",
             "Azure Key Vault"});
-            this.cboxRepositoryType.Location = new System.Drawing.Point(8, 31);
+            this.cboxRepositoryType.Location = new System.Drawing.Point(8, 48);
             this.cboxRepositoryType.Name = "cboxRepositoryType";
             this.cboxRepositoryType.Size = new System.Drawing.Size(280, 33);
             this.cboxRepositoryType.TabIndex = 2;
