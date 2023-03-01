@@ -1,13 +1,10 @@
-﻿using System.IO;
-using System.Text.RegularExpressions;
+﻿using System.Collections.Generic;
+using System.Threading.Tasks;
 using System.Windows;
 using Microsoft.VisualStudio.PlatformUI;
-using Microsoft.Win32;
 using SolutionSecrets.Core;
-using SolutionSecrets.Core.Repository;
-using EnvDTE;
-using System.Threading.Tasks;
 using SolutionSecrets.Core.Encryption;
+using SolutionSecrets.Core.Repository;
 
 
 namespace SolutionSecrets2022
@@ -16,21 +13,35 @@ namespace SolutionSecrets2022
 	/// Interaction logic for ConfigDialog.xaml
 	/// </summary>
 	public partial class ConfigDialog : DialogWindow
-	{
+    {
 
 		const int GITHUB = 0;
 		const int AZURE_KV = 1;
 
 
+		private bool _loaded = false;
 		private AsyncPackage _package;
 		private OleMenuCommandService _commandService;
 		private SolutionFile _solution;
+
+
+		public class RepositoryTypeModel
+		{
+			public string Name { get; set; }
+		}
+
+		public ICollection<RepositoryTypeModel> RepositoryTypes => new List<RepositoryTypeModel>
+		{
+			new RepositoryTypeModel { Name = "GitHub Gist" },
+			new RepositoryTypeModel { Name = "Azure Key Vault" }
+		};
 
 
 		public ConfigDialog()
 		{
 			InitializeComponent();
 			Loaded += ConfigDialog_Loaded;
+			DataContext = this;
 		}
 
 
@@ -109,6 +120,7 @@ namespace SolutionSecrets2022
 		private async void ConfigDialog_Loaded(object sender, RoutedEventArgs e)
 		{
 			Title = Vsix.Name;
+			_loaded = true;
 		}
 
 
@@ -130,14 +142,14 @@ namespace SolutionSecrets2022
 				}
 			}
 
-			if (await ConfigureSolution())
+			if (await ConfigureSolutionAsync())
 			{
 				Close();
 			}
 		}
 
 
-		private async Task<bool> ConfigureSolution()
+		private async Task<bool> ConfigureSolutionAsync()
 		{
 			if (_solution.Uid == Guid.Empty)
 			{
@@ -194,6 +206,10 @@ namespace SolutionSecrets2022
 
 		private void cboxRepositoryType_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
 		{
+			if (!_loaded)
+			{
+				return;
+			}
 			switch (cboxRepositoryType.SelectedIndex)
 			{
 				case GITHUB:
