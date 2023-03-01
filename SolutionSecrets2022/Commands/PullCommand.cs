@@ -1,21 +1,27 @@
 ﻿using System.Collections.Generic;
+using System.ComponentModel.Design;
+using System.Windows;
+using Azure.Identity;
 using Microsoft.VisualStudio.Threading;
 using Newtonsoft.Json;
 using SolutionSecrets.Core;
 using SolutionSecrets.Core.Repository;
+
 
 namespace SolutionSecrets2022
 {
     [Command(PackageIds.cmdidPullSecrets)]
     internal sealed class PullCommand : BaseCommand<PullCommand>
     {
-        protected override void Execute(object sender, EventArgs e)
-        {
-			PullSecretsAsync().Forget();
+
+		protected override async Task ExecuteAsync(OleMenuCmdEventArgs e)
+		{
+			OleMenuCommandService commandService = await this.Package.GetServiceAsync(typeof(IMenuCommandService)) as OleMenuCommandService;
+			PullSecretsAsync(commandService).Forget();
 		}
 
 
-		private async Task PullSecretsAsync()
+		private async Task PullSecretsAsync(OleMenuCommandService commandService)
 		{
 			await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
 			var solutionFullName = SolutionSecrets2022Package._dte.Solution.FullName;
@@ -34,19 +40,47 @@ namespace SolutionSecrets2022
 			// Select the repository for the curront solution
 			IRepository repository = Context.Current.GetRepository(synchronizationSettings) ?? Context.Current.Repository;
 
-			if (!await Context.Current.Cipher.IsReady() || !await repository.IsReady())
+			await VS.StatusBar.ShowMessageAsync($"Pulling secrets from {repository.RepositoryTypeFullName} for the solution: {solution.Name} ...");
+
+			if (repository is AzureKeyVaultRepository azureKvRepository)
 			{
-				await VS.MessageBox.ShowAsync("You need to configure the solution secrets synchronization before using the Pull command.",
-					icon: Microsoft.VisualStudio.Shell.Interop.OLEMSGICON.OLEMSGICON_WARNING,
-					buttons: Microsoft.VisualStudio.Shell.Interop.OLEMSGBUTTON.OLEMSGBUTTON_OK);
+				if (!await azureKvRepository.IsReady())
+				{
+					try
+					{
+						await azureKvRepository.AuthorizeAsync();
+					}
+					catch (AuthenticationFailedException ex)
+					{
+						System.Windows.MessageBox.Show($"Azure authentication failed. Check your credential in\nTools -> Options -> Azure Service Authentication.", Vsix.Name, MessageBoxButton.OK, MessageBoxImage.Exclamation);
+						await VS.StatusBar.ShowMessageAsync(String.Empty);
+						return;
+					}
+					catch (Exception)
+					{
+						await VS.StatusBar.ShowMessageAsync("Error pulling secrets for the solution.");
+						return;
+					}
+				}
 
-				var dialog = new ConfigDialog();
-				dialog.ShowDialog();
-
+				if (!await azureKvRepository.IsReady())
+				{
+					await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+					System.Windows.MessageBox.Show($"Access denied to Azure Key Vault {azureKvRepository.RepositoryName}.", Vsix.Name, MessageBoxButton.OK, MessageBoxImage.Exclamation);
+					commandService.OpenOption<Options.AzureKeyVault.AzureKeyVaultOptionPage>();
+					await VS.StatusBar.ShowMessageAsync("Error pulling secrets for the solution.");
+					return;
+				}
+			}
+			else if (!await Context.Current.Cipher.IsReady() || !await repository.IsReady())
+			{
+				await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+				System.Windows.MessageBox.Show("You need to configure the solution secrets synchronization before using the Push command.", Vsix.Name, MessageBoxButton.OK, MessageBoxImage.Exclamation);
+				commandService.OpenOption<Options.GitHubGists.GitHubGistsOptionPage>();
+				await VS.StatusBar.ShowMessageAsync("Error pulling secrets for the solution.");
 				return;
 			}
 
-			await VS.StatusBar.ShowMessageAsync($"Pulling secrets for solution: {solution.Name} ...");
 
 			var repositoryFiles = await repository.PullFilesAsync(solution);
 			if (repositoryFiles.Count == 0)
@@ -154,7 +188,7 @@ namespace SolutionSecrets2022
 			}
 
 			if (!failed)
-				await VS.StatusBar.ShowMessageAsync("Secrets pulled successfully.");
+				await VS.StatusBar.ShowMessageAsync($"Secrets pulled successfully from {repository.RepositoryTypeFullName}.");
 			else
 				await VS.StatusBar.ShowMessageAsync("Secrets pull has failed!");
 		}

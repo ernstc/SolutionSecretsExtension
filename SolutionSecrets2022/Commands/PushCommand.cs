@@ -1,21 +1,27 @@
 ﻿using System.Collections.Generic;
+using System.ComponentModel.Design;
+using System.Windows;
+using Azure.Identity;
 using Microsoft.VisualStudio.Threading;
 using Newtonsoft.Json;
 using SolutionSecrets.Core;
 using SolutionSecrets.Core.Repository;
+
 
 namespace SolutionSecrets2022
 {
     [Command(PackageIds.cmdidPushSecrets)]
     internal sealed class PushCommand : BaseCommand<PushCommand>
     {
-		protected override void Execute(object sender, EventArgs e)
+
+		protected override async Task ExecuteAsync(OleMenuCmdEventArgs e)
 		{
-			PushSecretsAsync().Forget();
+			OleMenuCommandService commandService = await this.Package.GetServiceAsync(typeof(IMenuCommandService)) as OleMenuCommandService;
+			PushSecretsAsync(commandService).Forget();
 		}
 
 
-		private async Task PushSecretsAsync()
+		private async Task PushSecretsAsync(OleMenuCommandService commandService)
 		{
 			await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
 			var solutionFullName = SolutionSecrets2022Package._dte.Solution.FullName;
@@ -34,19 +40,46 @@ namespace SolutionSecrets2022
 			// Select the repository for the curront solution
 			IRepository repository = Context.Current.GetRepository(synchronizationSettings) ?? Context.Current.Repository;
 
-			if (!await Context.Current.Cipher.IsReady() || !await repository.IsReady())
+			await VS.StatusBar.ShowMessageAsync($"Pushing secrets to {repository.RepositoryTypeFullName} for the solution: {solution.Name} ...");
+
+			if (repository is AzureKeyVaultRepository azureKvRepository)
 			{
-				await VS.MessageBox.ShowAsync("You need to configure the solution secrets synchronization before using the Push command.",
-					icon: Microsoft.VisualStudio.Shell.Interop.OLEMSGICON.OLEMSGICON_WARNING,
-					buttons: Microsoft.VisualStudio.Shell.Interop.OLEMSGBUTTON.OLEMSGBUTTON_OK);
+				if (!await azureKvRepository.IsReady())
+				{
+					try
+					{
+						await azureKvRepository.AuthorizeAsync();
+					}
+					catch (AuthenticationFailedException ex)
+					{
+						System.Windows.MessageBox.Show(ex.Message, Vsix.Name, MessageBoxButton.OK, MessageBoxImage.Exclamation);
+						await VS.StatusBar.ShowMessageAsync(String.Empty);
+						return;
+					}
+					catch (Exception)
+					{
+						await VS.StatusBar.ShowMessageAsync("Error pushing secrets for the solution.");
+						return;
+					}
+				}
 
-				var dialog = new ConfigDialog();
-				dialog.ShowDialog();
-
+				if (!await azureKvRepository.IsReady())
+				{
+					await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+					System.Windows.MessageBox.Show($"Access denied to Azure Key Vault {azureKvRepository.RepositoryName}.", Vsix.Name, MessageBoxButton.OK, MessageBoxImage.Exclamation);
+					commandService.OpenOption<Options.AzureKeyVault.AzureKeyVaultOptionPage>();
+					await VS.StatusBar.ShowMessageAsync("Error pushing secrets for the solution.");
+					return;
+				}
+			}
+			else if (!await Context.Current.Cipher.IsReady() || !await repository.IsReady())
+			{
+				await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+				System.Windows.MessageBox.Show("You need to configure the solution secrets synchronization before using the Push command.", Vsix.Name, MessageBoxButton.OK, MessageBoxImage.Exclamation);
+				commandService.OpenOption<Options.GitHubGists.GitHubGistsOptionPage>();
+				await VS.StatusBar.ShowMessageAsync("Error pushing secrets for the solution.");
 				return;
 			}
-
-			await VS.StatusBar.ShowMessageAsync($"Pushing secrets for solution: {solution.Name} ...");
 
 			var headerFile = new HeaderFile
 			{
@@ -102,7 +135,7 @@ namespace SolutionSecrets2022
 			if (!isEmpty && !failed)
 			{
 				if (await repository.PushFilesAsync(solution, files))
-					await VS.StatusBar.ShowMessageAsync("Secrets pushed successfully.");
+					await VS.StatusBar.ShowMessageAsync($"Secrets pushed successfully to {repository.RepositoryTypeFullName}.");
 				else
 					failed = true;
 			}

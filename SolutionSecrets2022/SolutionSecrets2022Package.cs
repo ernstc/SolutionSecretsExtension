@@ -21,14 +21,11 @@ namespace SolutionSecrets2022
 {
 	[PackageRegistration(UseManagedResourcesOnly = true, AllowsBackgroundLoading = true)]
     [InstalledProductRegistration(Vsix.Name, Vsix.Description, Vsix.Version)]
-    [ProvideMenuResource("Menus.ctmenu", 1)]
-    [Guid(PackageGuids.guidSolutionSecrets2022PkgString)]
-
 	[ProvideOptionPage(typeof(GeneralOptionPage), "Solution Secrets", "General", 0, 0, true)]
 	[ProvideOptionPage(typeof(GitHubGistsOptionPage), "Solution Secrets", "GitHub Gists", 0, 0, true)]
 	[ProvideOptionPage(typeof(AzureKeyVaultOptionPage), "Solution Secrets", "Azure Key Vault", 0, 0, true)]
-
-
+	[ProvideMenuResource("Menus.ctmenu", 1)]
+    [Guid(PackageGuids.guidSolutionSecrets2022PkgString)]
 	public sealed class SolutionSecrets2022Package : ToolkitPackage
     {
 		public static DTE2 _dte;
@@ -51,5 +48,6 @@ namespace SolutionSecrets2022
 			CoreContext.Current.AddService<IRepository>(defaultRepository, nameof(SolutionSecrets.Core.Repository.RepositoryType.GitHub));
 			CoreContext.Current.AddService<IRepository>(azureKeyVaultRepository, nameof(SolutionSecrets.Core.Repository.RepositoryType.AzureKV));
 		}
+
 	}
 }
