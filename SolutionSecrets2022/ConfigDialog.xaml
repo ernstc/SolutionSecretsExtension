@@ -19,7 +19,7 @@
     </platform:DialogWindow.Resources>
 
 
-    <Grid Background="{DynamicResource {x:Static SystemColors.ControlBrushKey}}">
+    <Grid>
         <Grid.RowDefinitions>
             <RowDefinition />
             <RowDefinition />
