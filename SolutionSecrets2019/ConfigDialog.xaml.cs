@@ -1,19 +1,17 @@
 ﻿using System;
-using System.ComponentModel.Design;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using System.Windows;
-using System.Windows.Forms;
-using System.Windows.Media.Imaging;
 using EnvDTE;
 using Microsoft;
-using Microsoft.VisualStudio;
 using Microsoft.VisualStudio.PlatformUI;
 using Microsoft.VisualStudio.Shell;
 using SolutionSecrets.Core;
-using Task = System.Threading.Tasks.Task;
-using CoreContext = SolutionSecrets.Core.Context;
-using SolutionSecrets.Core.Repository;
 using SolutionSecrets.Core.Encryption;
+using SolutionSecrets.Core.Repository;
+using CoreContext = SolutionSecrets.Core.Context;
+using Task = System.Threading.Tasks.Task;
+
 
 namespace SolutionSecrets2019
 {
@@ -27,15 +25,29 @@ namespace SolutionSecrets2019
 		const int AZURE_KV = 1;
 
 
+		private bool _loaded = false;
 		private AsyncPackage _package;
 		private OleMenuCommandService _commandService;
 		private SolutionFile _solution;
+
+
+		public class RepositoryTypeModel
+		{
+			public string Name { get; set; }
+		}
+
+		public ICollection<RepositoryTypeModel> RepositoryTypes => new List<RepositoryTypeModel>
+		{
+			new RepositoryTypeModel { Name = "GitHub Gist" },
+			new RepositoryTypeModel { Name = "Azure Key Vault" }
+		};
 
 
 		public ConfigDialog()
 		{
 			InitializeComponent();
 			Loaded += ConfigDialog_Loaded;
+			DataContext = this;
 		}
 
 
@@ -114,6 +126,7 @@ namespace SolutionSecrets2019
 		private void ConfigDialog_Loaded(object sender, RoutedEventArgs e)
 		{
 			Title = Vsix.Name;
+			_loaded = true;
 		}
 
 
@@ -135,7 +148,7 @@ namespace SolutionSecrets2019
 				}
 			}
 
-			if (await ConfigureSolution())
+			if (await ConfigureSolutionAsync())
 			{
 				Close();
 			}
@@ -151,7 +164,7 @@ namespace SolutionSecrets2019
 		}
 
 
-		private async Task<bool> ConfigureSolution()
+		private async Task<bool> ConfigureSolutionAsync()
 		{
 			if (_solution.Uid == Guid.Empty)
 			{
@@ -208,6 +221,10 @@ namespace SolutionSecrets2019
 
 		private void cboxRepositoryType_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
 		{
+			if (!_loaded)
+			{
+				return;
+			}
 			switch (cboxRepositoryType.SelectedIndex)
 			{
 				case GITHUB:
@@ -260,5 +277,6 @@ namespace SolutionSecrets2019
 					Visibility.Visible;
 			}
 		}
+
 	}
 }
