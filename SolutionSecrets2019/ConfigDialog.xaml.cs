@@ -56,6 +56,7 @@ namespace SolutionSecrets2019
 			_package = package;
 			_commandService = commandService ?? throw new ArgumentNullException(nameof(commandService));
 
+			ThreadHelper.ThrowIfNotOnUIThread();
 			var solutionFilePath = SolutionSecrets2019Package._dte.Solution.FullName;
 			_solution = new SolutionFile(solutionFilePath);
 
@@ -74,8 +75,8 @@ namespace SolutionSecrets2019
 					break;
 			}
 
-			CheckGitHubRepositoryStatusAsync();
-			CheckCipherStatusAsync();
+			CheckGitHubRepositoryStatus();
+			CheckCipherStatus();
 
 			txtAKVUrl.Text = customSettings.AzureKeyVaultName ?? defaultSettings.AzureKeyVaultName;
 			if (!String.IsNullOrWhiteSpace(defaultSettings.AzureKeyVaultName))
@@ -87,7 +88,7 @@ namespace SolutionSecrets2019
 		}
 
 
-		private async void CheckGitHubRepositoryStatusAsync()
+		private async void CheckGitHubRepositoryStatus()
 		{
 			string status;
 			var repository = CoreContext.Current.GetService<IRepository>(nameof(RepositoryType.GitHub));
@@ -105,7 +106,7 @@ namespace SolutionSecrets2019
 		}
 
 
-		private async void CheckCipherStatusAsync()
+		private async void CheckCipherStatus()
 		{
 			string status;
 			var cipher = CoreContext.Current.GetService<ICipher>();

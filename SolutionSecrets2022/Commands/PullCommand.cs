@@ -50,7 +50,7 @@ namespace SolutionSecrets2022
 					{
 						await azureKvRepository.AuthorizeAsync();
 					}
-					catch (AuthenticationFailedException ex)
+					catch (AuthenticationFailedException)
 					{
 						System.Windows.MessageBox.Show($"Azure authentication failed. Check your credential in\nTools -> Options -> Azure Service Authentication.", Vsix.Name, MessageBoxButton.OK, MessageBoxImage.Exclamation);
 						await VS.StatusBar.ShowMessageAsync(String.Empty);

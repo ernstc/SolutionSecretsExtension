@@ -59,6 +59,7 @@ namespace SolutionSecrets2019.Commands
 
 		private async Task PushSecretsAsync()
 		{
+			await package.JoinableTaskFactory.SwitchToMainThreadAsync();
 			var solutionFullName = SolutionSecrets2019Package._dte.Solution.FullName;
 
 			SolutionFile solution = new SolutionFile(solutionFullName);

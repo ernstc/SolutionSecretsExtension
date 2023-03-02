@@ -60,6 +60,7 @@ namespace SolutionSecrets2019.Commands
 
 		private async Task PullSecretsAsync()
 		{
+			await package.JoinableTaskFactory.SwitchToMainThreadAsync();
 			var solutionFullName = SolutionSecrets2019Package._dte.Solution.FullName;
 
 			SolutionFile solution = new SolutionFile(solutionFullName);
@@ -86,7 +87,7 @@ namespace SolutionSecrets2019.Commands
 					{
 						await azureKvRepository.AuthorizeAsync();
 					}
-					catch (AuthenticationFailedException ex)
+					catch (AuthenticationFailedException)
 					{
 						System.Windows.MessageBox.Show($"Azure authentication failed. Check your credential in\nTools -> Options -> Azure Service Authentication.", Vsix.Name, MessageBoxButton.OK, MessageBoxImage.Exclamation);
 						await UseStatusBarAsync(String.Empty);
