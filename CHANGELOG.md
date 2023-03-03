@@ -1,4 +1,15 @@
-﻿## April 2022 Release (version 1.1.2)
+## March 2023 Release (version 2.0.0)
+ This version allows the use of different types of repositories. Starting with this release, any solution can use a different repository to store its secret settings.
+
+**Azure Key Vault** is the new supported repository. Azure Key Vault is the recommended repository to use for scenarios where the solution secrets can be shared within the development team.
+
+### New Features
+
+* Added **Azure Key Vault** as an alternative repository for storing solution secrets.
+
+---
+
+## April 2022 Release (version 1.1.2)
 
 ### Features
 
