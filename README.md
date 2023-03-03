@@ -1,4 +1,4 @@
-# Solution Secrets v2.0 for Visual Studio
+# Solution Secrets for Visual Studio
 
 ### Visual Studio extension to synchronize solution secrets across different development workstations.
 
