@@ -24,6 +24,8 @@ namespace SolutionSecrets2019.Commands
 
 		public static readonly Guid CommandSet = PackageGuids.guidSolutionSecrets2019CmdSet;
 
+		private SolutionSecrets.Core.Commands.PullCommand _pullCommand;
+
 
 		public static PullCommand Instance {
 			get;
@@ -47,13 +49,16 @@ namespace SolutionSecrets2019.Commands
 			var menuCommandID = new CommandID(CommandSet, CommandId);
 			var menuItem = new MenuCommand(this.Execute, menuCommandID);
 			commandService.AddCommand(menuItem);
+
+			_pullCommand = new SolutionSecrets.Core.Commands.PullCommand(
+				new VSEnvironment(package, commandService)
+			);
 		}
 
 
 		private void Execute(object sender, EventArgs e)
 		{
 			ThreadHelper.ThrowIfNotOnUIThread();
-			string message = string.Format(CultureInfo.CurrentCulture, "Inside {0}.MenuItemCallback()", this.GetType().FullName);
 			PullSecretsAsync().Forget();
 		}
 
@@ -63,6 +68,9 @@ namespace SolutionSecrets2019.Commands
 			await package.JoinableTaskFactory.SwitchToMainThreadAsync();
 			var solutionFullName = SolutionSecrets2019Package._dte.Solution.FullName;
 
+			await _pullCommand.Execute(solutionFullName);
+
+			/*
 			SolutionFile solution = new SolutionFile(solutionFullName);
 
 			ICollection<SecretFile> secretFiles = solution.GetProjectsSecretFiles();
@@ -228,6 +236,7 @@ namespace SolutionSecrets2019.Commands
 				await UseStatusBarAsync($"Secrets pulled successfully from {repository.RepositoryTypeFullName}.");
 			else
 				await UseStatusBarAsync("Secrets pull has failed!");
+			*/
 		}
 
 	}

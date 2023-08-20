@@ -1,13 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
-using System.Net.Http.Headers;
-using System.Net.Http;
-using System.Text;
 using System.Threading.Tasks;
-using Azure.Core;
-using Azure.Identity;
 using Azure.Security.KeyVault.Secrets;
 
 namespace SolutionSecrets.Core.Repository
@@ -30,38 +24,48 @@ namespace SolutionSecrets.Core.Repository
         public string RepositoryType => "AzureKV";
         public string RepositoryTypeFullName => "Azure Key Vault";
 
+        private Uri _repositoryUri;
         private string _repositoryName;
 
         public string RepositoryName
         {
             get => _repositoryName;
-            set
-            {
-                if (String.IsNullOrWhiteSpace(value))
+            set {
+                if (value == null)
                 {
                     _repositoryName = null;
+                    _repositoryUri = null;
                 }
                 else
                 {
-                    string loweredValue = value.ToLower();
+                    string loweredValue = value.ToLowerInvariant();
                     if (Uri.TryCreate(loweredValue, UriKind.Absolute, out Uri repositoryUri) && repositoryUri != null)
                     {
-                        int vaultIndex = repositoryUri.Host.IndexOf(".vault.", StringComparison.Ordinal);
+                        _repositoryName = null;
+                        _repositoryUri = null;
+
+                        int vaultIndex = loweredValue.IndexOf(".vault.", StringComparison.Ordinal);
                         if (vaultIndex >= 0)
                         {
-                            string cloudDomain = repositoryUri.Host.Substring(vaultIndex);
+                            string cloudDomain = loweredValue.Substring(vaultIndex);
                             if (_clouds.ContainsKey(cloudDomain))
                             {
-                                _repositoryName = repositoryUri.Scheme.Equals("https", StringComparison.OrdinalIgnoreCase) ? $"https://{repositoryUri.Host}" : null;
-                                return;
+                                _repositoryName = repositoryUri.Scheme.Equals("https", StringComparison.Ordinal) ? loweredValue : null;
+                                _repositoryUri = _repositoryName != null ? new Uri(_repositoryName) : null;
                             }
                         }
-                        _repositoryName = null;
                     }
                     else
                     {
                         _repositoryName = $"https://{loweredValue}{DEFAULT_CLOUD}";
+                        _repositoryUri = new Uri(_repositoryName);
                     }
+                }
+
+                if (_client != null && _client.VaultUri != _repositoryUri)
+                {
+                    // If the vault URI has changed, we need to re-authorize the client.
+                    _client = null;
                 }
             }
         }
@@ -86,7 +90,7 @@ namespace SolutionSecrets.Core.Repository
             cloudDomain = cloudDomain.Substring(cloudDomain.IndexOf(".vault.", StringComparison.Ordinal));
 
             if (_clouds.TryGetValue(cloudDomain, out var cloud))
-                return $"{cloud} ({name})";
+                return $"{name} ({cloud})";
             else
                 return _repositoryName;
         }
@@ -94,9 +98,9 @@ namespace SolutionSecrets.Core.Repository
 
         public async Task AuthorizeAsync()
         {
-            if (_repositoryName != null)
+            if (_repositoryUri != null)
             {
-                _client = new SecretClient(new Uri(_repositoryName));
+                _client = new SecretClient(_repositoryUri);
                 try
                 {
                     var _ = await _client.GetSecretAsync("vs-secrets-fake");

@@ -95,6 +95,8 @@ namespace Azure.Security.KeyVault.Secrets
 
         private static Dictionary<string, string> cacheVaultTenants = new Dictionary<string, string>();
 
+        public Uri VaultUri => _vaultUri;
+
 
         public SecretClient(Uri vaultUri)
         {

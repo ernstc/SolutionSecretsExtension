@@ -354,15 +354,15 @@ namespace SolutionSecrets.Core.Repository
                 await DeleteGist(gist);
             }
 
-            HttpClient client = new HttpClient(new HttpClientHandler()
+            HttpClient httpClient = new HttpClient(new HttpClientHandler()
             {
                 AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate,
             });
 
-            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _oauthAccessToken);
+            httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _oauthAccessToken);
 
-            if (client.DefaultRequestHeaders.UserAgent.TryParseAdd(Constants.USER_AGENT))
-                client.DefaultRequestHeaders.Add("User-Agent", Constants.USER_AGENT);
+            if (httpClient.DefaultRequestHeaders.UserAgent.TryParseAdd(Constants.USER_AGENT))
+                httpClient.DefaultRequestHeaders.Add("User-Agent", Constants.USER_AGENT);
 
             HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, "https://api.github.com/gists");
 
@@ -396,7 +396,7 @@ namespace SolutionSecrets.Core.Repository
                 request.Content = new StringContent(payloadJson, Encoding.UTF8, "application/json");
 
                 Debug.WriteLine($"{request.Method} {request.RequestUri}");
-                var response = await client.SendAsync(request);
+                var response = await httpClient.SendAsync(request);
                 return response.IsSuccessStatusCode;
             }
             catch (Exception ex)
@@ -477,15 +477,15 @@ namespace SolutionSecrets.Core.Repository
             if (gist == null)
                 throw new ArgumentNullException(nameof(gist));
 
-            HttpClient client = new HttpClient(new HttpClientHandler()
+            HttpClient httpClient = new HttpClient(new HttpClientHandler()
             {
                 AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate,
             });
 
-            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _oauthAccessToken);
+            httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _oauthAccessToken);
 
-            if (client.DefaultRequestHeaders.UserAgent.TryParseAdd(Constants.USER_AGENT))
-                client.DefaultRequestHeaders.Add("User-Agent", Constants.USER_AGENT);
+            if (httpClient.DefaultRequestHeaders.UserAgent.TryParseAdd(Constants.USER_AGENT))
+                httpClient.DefaultRequestHeaders.Add("User-Agent", Constants.USER_AGENT);
 
             HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Delete, $"https://api.github.com/gists/{gist.id}");
 
@@ -494,7 +494,7 @@ namespace SolutionSecrets.Core.Repository
             try
             {
                 Debug.WriteLine($"{request.Method} {request.RequestUri}");
-                var response = await client.SendAsync(request);
+                var response = await httpClient.SendAsync(request);
                 return response.IsSuccessStatusCode;
             }
             catch
@@ -511,23 +511,23 @@ namespace SolutionSecrets.Core.Repository
                 return;
             }
 
-            HttpClient client = new HttpClient(new HttpClientHandler()
+            HttpClient httpClient = new HttpClient(new HttpClientHandler()
             {
                 AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate,
             });
 
             if (_oauthAccessToken != null)
-                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _oauthAccessToken);
+                httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _oauthAccessToken);
 
-            if (client.DefaultRequestHeaders.UserAgent.TryParseAdd(Constants.USER_AGENT))
-                client.DefaultRequestHeaders.Add("User-Agent", Constants.USER_AGENT);
+            if (httpClient.DefaultRequestHeaders.UserAgent.TryParseAdd(Constants.USER_AGENT))
+                httpClient.DefaultRequestHeaders.Add("User-Agent", Constants.USER_AGENT);
 
             var message = new HttpRequestMessage(HttpMethod.Get, "https://api.github.com/gists/00000000000000000000000000000000");
             message.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
             try
             {
                 Debug.WriteLine($"{message.Method} {message.RequestUri}");
-                var response = await client.SendAsync(message).ConfigureAwait(false);
+                var response = await httpClient.SendAsync(message).ConfigureAwait(false);
                 if (response.StatusCode != HttpStatusCode.NotFound)
                 {
                     _oauthAccessToken = null;
@@ -544,24 +544,28 @@ namespace SolutionSecrets.Core.Repository
         }
 
 
-        private async Task<T> SendRequest<T>(HttpMethod method, string uri)
+        private Dictionary<string, string> _requestsCache = new Dictionary<string, string>();
+
+        private async Task<T> SendRequest<T>(HttpMethod method, string uri, bool useCache = false)
             where T : class, new()
         {
             string content = null;
             string cacheKey = $"{method} {uri}";
 
+            _ = useCache && _requestsCache.TryGetValue(cacheKey, out content);
+
             if (content == null)
             {
-                HttpClient client = new HttpClient(new HttpClientHandler()
+                HttpClient httpClient = new HttpClient(new HttpClientHandler()
                 {
                     AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate,
                 });
 
                 if (_oauthAccessToken != null)
-                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _oauthAccessToken);
+                    httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _oauthAccessToken);
 
-                if (client.DefaultRequestHeaders.UserAgent.TryParseAdd(Constants.USER_AGENT))
-                    client.DefaultRequestHeaders.Add("User-Agent", Constants.USER_AGENT);
+                if (httpClient.DefaultRequestHeaders.UserAgent.TryParseAdd(Constants.USER_AGENT))
+                    httpClient.DefaultRequestHeaders.Add("User-Agent", Constants.USER_AGENT);
 
                 var message = new HttpRequestMessage(method, uri);
                 message.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
@@ -569,10 +573,14 @@ namespace SolutionSecrets.Core.Repository
                 try
                 {
                     Debug.WriteLine($"{message.Method} {message.RequestUri}");
-                    var response = await client.SendAsync(message).ConfigureAwait(false);
+                    var response = await httpClient.SendAsync(message).ConfigureAwait(false);
                     if (response.IsSuccessStatusCode)
                     {
                         content = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+                        if (content != null)
+                        {
+                            _requestsCache[cacheKey] = content;
+                        }
                     }
                 }
                 catch (Exception ex)

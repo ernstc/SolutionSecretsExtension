@@ -15,6 +15,7 @@ namespace SolutionSecrets.Core
 
 
         public static string VersionString { get; }
+        public static string CommitHash { get; }
         public static Version CurrentVersion { get; }
 
 
@@ -24,8 +25,11 @@ namespace SolutionSecrets.Core
                 .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?
                 .InformationalVersion;
 
-            VersionString = version ?? "unknown";
-            CurrentVersion = String.IsNullOrEmpty(version) ? new Version() : new Version(version.Split('-')[0]);
+            string[] versionParts = version?.Split('+');
+
+            VersionString = versionParts?.Length > 0 ? versionParts[0] : "unknown";
+            CurrentVersion = String.IsNullOrEmpty(version) ? new Version() : new Version(VersionString.Split('-')[0]);
+            CommitHash = versionParts?.Length > 1 ? versionParts[1].Substring(0, 8) : null;
         }
     }
 }

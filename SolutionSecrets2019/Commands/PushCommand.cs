@@ -24,6 +24,8 @@ namespace SolutionSecrets2019.Commands
 
 		public static readonly Guid CommandSet = PackageGuids.guidSolutionSecrets2019CmdSet;
 
+		private SolutionSecrets.Core.Commands.PushCommand _pushCommand;
+
 
 		public static PushCommand Instance {
 			get;
@@ -47,6 +49,10 @@ namespace SolutionSecrets2019.Commands
 			var menuCommandID = new CommandID(CommandSet, CommandId);
 			var menuItem = new MenuCommand(this.Execute, menuCommandID);
 			commandService.AddCommand(menuItem);
+
+			_pushCommand = new SolutionSecrets.Core.Commands.PushCommand(
+				new VSEnvironment(package, commandService)
+			);
 		}
 
 
@@ -62,6 +68,9 @@ namespace SolutionSecrets2019.Commands
 			await package.JoinableTaskFactory.SwitchToMainThreadAsync();
 			var solutionFullName = SolutionSecrets2019Package._dte.Solution.FullName;
 
+			await _pushCommand.Execute(solutionFullName);
+
+			/*
 			SolutionFile solution = new SolutionFile(solutionFullName);
 
 			var secretFiles = solution.GetProjectsSecretFiles();
@@ -180,6 +189,7 @@ namespace SolutionSecrets2019.Commands
 			{
 				await UseStatusBarAsync("Secrets push has failed!");
 			}
+			*/
 		}
 
 	}
