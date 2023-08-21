@@ -46,7 +46,7 @@ namespace SolutionSecrets.Core.Commands
                         {
                             await azureKvRepository.AuthorizeAsync();
                         }
-                        catch (AuthenticationFailedException ex)
+                        catch (AuthenticationFailedException)
                         {
                             await _environment.ShowDialogMessageAsync($"Azure authentication failed. Check your credential in\nTools -> Options -> Azure Service Authentication.");
                             await _environment.ShowStatusMessageAsync(String.Empty);
