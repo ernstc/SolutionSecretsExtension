@@ -13,7 +13,7 @@ namespace SolutionSecrets2022
 	/// Interaction logic for ConfigDialog.xaml
 	/// </summary>
 	public partial class ConfigDialog : DialogWindow
-    {
+	{
 
 		const int GITHUB = 0;
 		const int AZURE_KV = 1;
@@ -130,16 +130,23 @@ namespace SolutionSecrets2022
 			if (cboxRepositoryType.SelectedIndex == AZURE_KV)
 			{
 				var repository = (AzureKeyVaultRepository)CoreContext.Current.GetService<IRepository>(nameof(RepositoryType.AzureKV));
-				repository.RepositoryName = txtAKVUrl.Text;
-				if (repository.RepositoryName == null)
+				if (String.IsNullOrWhiteSpace(txtAKVUrl.Text))
 				{
-					System.Windows.MessageBox.Show("The key vault URL is not correct.", Constants.MESSAGE_BOX_TITLE, MessageBoxButton.OK);
-					return;
+					repository.RepositoryName = null;
 				}
-				else if (txtAKVUrl.Text != repository.RepositoryName)
+				else
 				{
-					await _package.JoinableTaskFactory.SwitchToMainThreadAsync();
-					txtAKVUrl.Text = repository.RepositoryName;
+					repository.RepositoryName = txtAKVUrl.Text;
+					if (repository.RepositoryName == null)
+					{
+						System.Windows.MessageBox.Show("The key vault URL is not correct.", Constants.MESSAGE_BOX_TITLE, MessageBoxButton.OK);
+						return;
+					}
+					else if (txtAKVUrl.Text != repository.RepositoryName)
+					{
+						await _package.JoinableTaskFactory.SwitchToMainThreadAsync();
+						txtAKVUrl.Text = repository.RepositoryName;
+					}
 				}
 			}
 
@@ -191,14 +198,24 @@ namespace SolutionSecrets2022
 					return true;
 				}
 
-				SyncConfiguration.SetCustomSynchronizationSettings(_solution.Uid, new SolutionSynchronizationSettings
+				SolutionSynchronizationSettings solutionSettings = null;
+				if (!String.IsNullOrWhiteSpace(txtAKVUrl.Text))
 				{
-					Repository = RepositoryType.AzureKV,
-					AzureKeyVaultName = txtAKVUrl.Text
-				});
+					solutionSettings = new SolutionSynchronizationSettings
+					{
+						Repository = RepositoryType.AzureKV,
+						AzureKeyVaultName = txtAKVUrl.Text
+					};
+				}
+
+				SyncConfiguration.SetCustomSynchronizationSettings(_solution.Uid, solutionSettings);
 				SyncConfiguration.Save();
 
-				await VS.StatusBar.ShowMessageAsync($"Configured Azure Key Vault as the repository for the solution secrets.");
+				if (solutionSettings != null)
+					await VS.StatusBar.ShowMessageAsync($"Configured Azure Key Vault as the repository for the solution secrets.");
+				else
+					await VS.StatusBar.ShowMessageAsync($"Reverted solution to default settings for solution secrets.");
+
 				return true;
 			}
 			return false;
