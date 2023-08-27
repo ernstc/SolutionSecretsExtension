@@ -57,8 +57,19 @@ namespace SolutionSecrets.Core.Repository
                     }
                     else
                     {
-                        _repositoryName = $"https://{loweredValue}{DEFAULT_CLOUD}";
-                        _repositoryUri = new Uri(_repositoryName);
+                        if (loweredValue.StartsWith("https://", StringComparison.Ordinal))
+                        {
+                            _repositoryName = loweredValue;
+                        }
+                        else
+                        {
+                            _repositoryName = $"https://{loweredValue}{DEFAULT_CLOUD}";
+                        }
+                        if (!Uri.TryCreate(_repositoryName, UriKind.Absolute, out _repositoryUri))
+                        {
+                            _repositoryName = null; 
+                            _repositoryUri = null;
+                        }
                     }
                 }
 
