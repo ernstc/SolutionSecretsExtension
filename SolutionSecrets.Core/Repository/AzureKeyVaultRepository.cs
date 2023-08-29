@@ -116,6 +116,14 @@ namespace SolutionSecrets.Core.Repository
                 {
                     var _ = await _client.GetSecretAsync("vs-secrets-fake");
                 }
+                catch (Azure.RequestFailedException ex)
+                {
+                    if (ex.Status == 401)
+                    {
+                        _client = null;
+                        throw new UnauthorizedAccessException(ex.ErrorCode, ex);
+                    }
+                }
                 catch (Azure.Identity.AuthenticationFailedException)
                 {
                     _client = null;

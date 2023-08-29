@@ -52,6 +52,11 @@ namespace SolutionSecrets.Core.Commands
                             await _environment.ShowStatusMessageAsync(String.Empty);
                             return;
                         }
+                        catch (UnauthorizedAccessException)
+                        {
+                            await _environment.ShowStatusMessageAsync("Unauthorized access to Azure Key Vault.");
+                            return;
+                        }
                         catch (Exception)
                         {
                             await _environment.ShowStatusMessageAsync("Error while pushing secrets for the solution.");
