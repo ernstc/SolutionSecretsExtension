@@ -78,7 +78,16 @@ namespace SolutionSecrets2019
 			CheckGitHubRepositoryStatus();
 			CheckCipherStatus();
 
-			txtAKVUrl.Text = customSettings.AzureKeyVaultName ?? defaultSettings.AzureKeyVaultName;
+			string azurekvName = customSettings.AzureKeyVaultName ?? defaultSettings.AzureKeyVaultName;	
+			if (customSettings.Repository == RepositoryType.AzureKV
+				&& azurekvName != null)
+			{
+				var repository = (AzureKeyVaultRepository)CoreContext.Current.GetService<IRepository>(nameof(RepositoryType.AzureKV));
+				repository.RepositoryName = azurekvName;
+				azurekvName = repository.RepositoryName;
+			}
+			txtAKVUrl.Text = azurekvName;
+
 			if (!String.IsNullOrWhiteSpace(defaultSettings.AzureKeyVaultName))
 			{
 				btnAKVResetToDefault.Visibility = String.Equals(txtAKVUrl.Text, defaultSettings.AzureKeyVaultName, StringComparison.OrdinalIgnoreCase) ?
