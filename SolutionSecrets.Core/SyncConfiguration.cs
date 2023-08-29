@@ -60,6 +60,7 @@ namespace SolutionSecrets.Core
 
         public static SolutionSynchronizationSettings GetCustomSynchronizationSettings(Guid solutionGuid)
         {
+            Refresh();
             string key = solutionGuid.ToString();
             if (Current.TryGetValue(key, out SolutionSynchronizationSettings value))
             {
@@ -74,6 +75,7 @@ namespace SolutionSecrets.Core
 
         public static void SetCustomSynchronizationSettings(Guid solutionGuid, SolutionSynchronizationSettings settings)
         {
+            Refresh();
             string key = solutionGuid.ToString();
             if (settings != null)
             {
