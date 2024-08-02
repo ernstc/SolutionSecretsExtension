@@ -1,3 +1,13 @@
+## August 2024 Release (version 2.1.3)
+
+This is a maintenance release.
+
+### Fixes
+
+* Updated dependencies for fixing security vulnerabilities.
+
+---
+
 ## October 2023 Release (version 2.1.2)
 
 This is a maintenance release.
